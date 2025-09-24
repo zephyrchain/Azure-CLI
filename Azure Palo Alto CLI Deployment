@@ -13,15 +13,15 @@ az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VN
 az network public-ip create --name PIP-MGMT-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --location eastus --dns-name panmgmt001 --allocation-method Static --sku Standard --zone 2
 
 #Create and Configure Multiple Network Interfaces
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
 
 #Create Network Security Groups
 az network nsg create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NSG-PAN-PRD-EUS-001
 
 #Create Network Security Group Rule. This will be used for inbound management access - Modify source IP
-az network nsg rule create -g RG-PAN-PRD-EUS-001 --nsg-name NSG-PAN-PRD-EUS-001 -n mgmtaccess --priority 110 --source-address-prefixes "10.30.20.10" --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 22 443 --access Allow --protocol Tcp --description "Allow from any RFC 1918 address on 22 and 443"
+az network nsg rule create -g RG-PAN-PRD-EUS-001 --nsg-name NSG-PAN-PRD-EUS-001 -n mgmtaccess --priority 110 --source-address-prefixes "150.45.62.130" --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 22 443 --access Allow --protocol Tcp --description "Allow from any RFC 1918 address on 22 and 443"
 
 #Add Network Security Group to MGMT NIC
 az network nic update -g RG-PAN-PRD-EUS-001 -n NIC-MGMT-PRD-EUS-001 --network-security-group NSG-PAN-PRD-EUS-001
@@ -41,7 +41,7 @@ az vm create --resource-group RG-PAN-PRD-EUS-001 --name VM-PAN-PRD-EUS-001 --loc
 #SSH key files '/home/username/.ssh/id_rsa' and '/home/username/.ssh/id_rsa.pub' have been generated under ~/.ssh to allow SSH access to the VM
 
 #Create local network gateway
-az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 20.40.60.80 --local-address-prefixes 10.1.0.0/20.40.60.80/24 --asn 65513 --bgp-peering-address 10.20.30.40
+az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 50.25.31.1 --local-address-prefixes 10.20.0.0/24 50.10.0.0/24 --asn 65513 --bgp-peering-address 10.25.35.45
 
 #Create a Public IP for the Virtual Network Gateway
 az network public-ip create -n PIP-VNG-PRD-EUS-001 -g RG-PAN-PRD-EUS-001 --zone 2

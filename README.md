@@ -95,9 +95,9 @@ Modify the following based on your environment:
 
 ## Next Steps
 
-- [Explore Palo Alto VM-Series documentation](https://www.paloaltonetworks.com/resources/datasheets/vm-series-on-azure)
+- [Explore Palo Alto VM-Series documentation]([https://www.paloaltonetworks.com/resources/datasheets/vm-series-on-azure](https://docs.paloaltonetworks.com/cloud-ngfw-azure/deployment/cloud-ngfw-for-azure-deployment-architectures)
 - [Learn about Azure VPN Gateway](https://learn.microsoft.com/en-us/azure/vpn-gateway/)
-- [Understand Azure NSG rules](https://learn.microsoft.com/en-us/azure/networking/network-security-groups-overview)
+- [Understand Azure NSG rules](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview)
 
 ---
 

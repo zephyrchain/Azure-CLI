@@ -1,16 +1,3 @@
-Absolutely! To align your GitHub Markdown file with the formatting style of the Microsoft Learn page you referenced, we’ll adopt a more structured, documentation-style layout. This includes:
-
-- Clear section headers with hierarchical organization
-- Introductory context and purpose
-- Benefits and use cases
-- Actionable steps and configuration breakdowns
-- Tables for clarity where needed
-- “Next steps” and “See also” style links
-
-Here’s a revised version of your README.md:
-
----
-
 # Azure Palo Alto VM-Series Deployment Script
 
 ## Overview

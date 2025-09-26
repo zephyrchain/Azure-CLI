@@ -13,9 +13,9 @@ az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VN
 az network public-ip create --name PIP-MGMT-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --location eastus --dns-name panmgmt001 --allocation-method Static --sku Standard --zone 2
 
 #Create and Configure Multiple Network Interfaces
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
 
 #Create Network Security Groups
 az network nsg create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NSG-PAN-PRD-EUS-001

@@ -61,7 +61,7 @@ az network vnet-gateway create --resource-group RG-PAN-PRD-EUS-001 --name VNG-S2
 az network vpn-connection create --name VPN-CONNECTION-S2S-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-gateway1 VNG-S2S-PRD-EUS-001 --location eastus --shared-key "YourSharedKeyHere" --local-gateway2 LNG-S2S-PRD-EUS-001 
 
 #Add Route Table to gateway subnet: To be determined
-# Create a route table
+#Create a route table
 az network route-table create --resource-group RG-PAN-PRD-EUS-001 --name RT-PAN-PRD-EUS-001
 
 #Create Routes - To be determined
@@ -71,29 +71,29 @@ az network route-table route create --name RouteToPan --resource-group RG-PAN-PR
 az network vnet subnet update --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --resource-group RG-PAN-PRD-EUS-001 --route-table RT-PAN-PRD-EUS-001
 
 #ROUTE SERVER FOR BGP
-# Create a resource group
+#Create a resource group
 az group create --name 'RG-PAN-PRD-EUS-001' --location 'eastus'
 
-# Create a virtual network and RouteServerSubnet
+#Create a virtual network and RouteServerSubnet
 az network vnet create --resource-group 'RG-PAN-PRD-EUS-001' --name 'VNET-HUB-PRD-EUS-001' --subnet-name 'SUBNET-RTRSRV-PRD-EUS-001' --subnet-prefixes '10.0.7.64/26'
 
-# Store the subnet ID in a variable for later use
+#Store the subnet ID in a variable for later use
 subnetId=$(az network vnet subnet show --name 'SUBNET-RTRSRV-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --vnet-name 'VNET-HUB-PRD-EUS-001' --query id -o tsv)
 
-# Create a Standard public IP for Route Server
+#Create a Standard public IP for Route Server
 az network public-ip create --resource-group 'RG-PAN-PRD-EUS-001' --name 'PIP-RSVR-PRD-EUS-001' --sku Standard --version 'IPv4'
 
-# Create the Route Server
+#Create the Route Server
 az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address 'PIP-RSVR-PRD-EUS-001'
 
-# Create BGP peering with the network virtual appliance
+#Create BGP peering with the network virtual appliance
 az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '64999' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
 
-# Enable branch-to-branch route exchange
+#Enable branch-to-branch route exchange
 az network routeserver update --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --allow-b2b-traffic true
 
 #SPOKE VNETS
-# PUBLIC
+#PUBLIC
 az group create --name RG-PUBLIC-PRD-EUS-002 --location eastus
 az network vnet create --resource-group RG-PUBLIC-PRD-EUS-002 --location eastus --name VNET-PUBLIC-PRD-EUS-001 --address-prefixes 10.0.16.0/20
 az network vnet subnet create --resource-group RG-PUBLIC-PRD-EUS-002 --vnet-name VNET-PUBLIC-PRD-EUS-001 --name SUBNET-DMZ-PRD-EUS-001  --address-prefixes 10.0.16.0/24
@@ -110,7 +110,7 @@ az network route-table route create --resource-group RG-PUBLIC-PRD-EUS-002 --rou
 az network route-table route create --resource-group RG-PUBLIC-PRD-EUS-002 --route-table-name RT-PUBLIC-PRD-EUS-001 --name ROUTE-TO-HUB-B-PRD-EUS-001 --address-prefix 10.0.3.0/24 --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.2.4
 az network route-table route create --resource-group RG-PUBLIC-PRD-EUS-002 --route-table-name RT-PUBLIC-PRD-EUS-001 --name ROUTE-TO-HUB-C-PRD-EUS-001 --address-prefix 10.0.4.0/22 --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.2.4
 
-# PRODUCTION
+#PRODUCTION
 az group create --name RG-PRODUCTION-PRD-EUS-003 --location eastus
 az network vnet create --resource-group RG-PRODUCTION-PRD-EUS-003 --location eastus --name VNET-PRODUCTION-PRD-EUS-001 --address-prefixes 10.0.32.0/20
 az network vnet subnet create --resource-group RG-PRODUCTION-PRD-EUS-003 --vnet-name VNET-PRODUCTION-PRD-EUS-001 --name SUBNET-APP-PRD-EUS-001 --address-prefixes 10.0.32.0/24
@@ -127,7 +127,7 @@ az network route-table route create --resource-group RG-PRODUCTION-PRD-EUS-003 -
 az network route-table route create --resource-group RG-PRODUCTION-PRD-EUS-003 --route-table-name RT-PRODUCTION-PRD-EUS-001 --name ROUTE-TO-HUB-B-PRD-EUS-001 --address-prefix 10.0.3.0/24 --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.2.4
 az network route-table route create --resource-group RG-PRODUCTION-PRD-EUS-003 --route-table-name RT-PRODUCTION-PRD-EUS-001 --name ROUTE-TO-HUB-C-PRD-EUS-001 --address-prefix 10.0.4.0/22 --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.2.4
 
-# BACKUP
+#BACKUP
 az group create --name RG-BACKUP-PRD-EUS-004 --location eastus
 az network vnet create --resource-group RG-BACKUP-PRD-EUS-004 --location eastus --name VNET-BACKUP-PRD-EUS-001 --address-prefixes 10.0.48.0/20
 az network vnet subnet create --resource-group RG-BACKUP-PRD-EUS-004 --vnet-name VNET-BACKUP-PRD-EUS-001 --name SUBNET-BKPMGMT-PRD-EUS-001  --address-prefixes 10.0.48.0/24

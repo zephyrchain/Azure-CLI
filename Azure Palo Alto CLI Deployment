@@ -71,20 +71,17 @@ az network route-table route create --name RouteToPan --resource-group RG-PAN-PR
 az network vnet subnet update --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --resource-group RG-PAN-PRD-EUS-001 --route-table RT-PAN-PRD-EUS-001
 
 #ROUTE SERVER FOR BGP
-#Create a resource group
-az group create --name 'RG-PAN-PRD-EUS-001' --location 'eastus'
-
-#Create a virtual network and RouteServerSubnet
-az network vnet create --resource-group 'RG-PAN-PRD-EUS-001' --name 'VNET-HUB-PRD-EUS-001' --subnet-name 'SUBNET-RTRSRV-PRD-EUS-001' --subnet-prefixes '10.0.7.64/26'
+# Add RouteServerSubnet to an existing VNet
+az network vnet subnet create --resource-group 'RG-PAN-PRD-EUS-001' --vnet-name 'VNET-HUB-PRD-EUS-001' --name 'RouteServerSubnet' --address-prefixes '10.0.7.64/26'
 
 #Store the subnet ID in a variable for later use
-subnetId=$(az network vnet subnet show --name 'SUBNET-RTRSRV-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --vnet-name 'VNET-HUB-PRD-EUS-001' --query id -o tsv)
+subnetId=$(az network vnet subnet show --name 'RouteServerSubnet' --resource-group 'RG-PAN-PRD-EUS-001' --vnet-name 'VNET-HUB-PRD-EUS-001' --query id -o tsv)
 
 #Create a Standard public IP for Route Server
 az network public-ip create --resource-group 'RG-PAN-PRD-EUS-001' --name 'PIP-RSVR-PRD-EUS-001' --sku Standard --version 'IPv4'
 
 #Create the Route Server
-az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address 'PIP-RSVR-PRD-EUS-001'
+az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address 'PIP-RSVR-PRD-EUS-001' 
 
 #Create BGP peering with the network virtual appliance
 az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '64999' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'

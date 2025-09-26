@@ -117,12 +117,13 @@ Happy deploying! 🔐🚀
 Let me know if you'd like to add diagrams, code blocks, or tables for specific command breakdowns!
 
 ```
-License and permitted use
 
-This repository is provided for learning, experimentation, and non-commercial use only.
-Commercial use, production deployment by for-profit organizations, resale, or using
+License and Permitted Use
+
+This repository is provided for learning, experimentation, and non-commercial use only.  
+Commercial use, production deployment by for-profit organizations, resale, or using  
 this project for monetary gain is prohibited.
 
-Licensed under the PolyForm Noncommercial License 1.0.0 — see the LICENSE file for details.
+Licensed under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/) — see the LICENSE file for details.
 
 ```

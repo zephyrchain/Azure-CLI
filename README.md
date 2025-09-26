@@ -39,7 +39,7 @@ Before running the script, ensure the following:
 
 - **Resource Group & VNet**
   - Creates a resource group
-  - Defines a virtual network with `/16` address space
+  - Defines a virtual network with `/21` address space
   - Subnets for Management, Untrust, and Trust interfaces
 
 - **Public IP & NICs**

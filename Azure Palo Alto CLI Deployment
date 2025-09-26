@@ -65,7 +65,7 @@ az network vpn-connection create --name VPN-CONNECTION-S2S-PRD-EUS-001 --resourc
 az network route-table create --resource-group RG-PAN-PRD-EUS-001 --name RT-PAN-PRD-EUS-001
 
 #Create Routes - To be determined
-az network route-table route create --name RouteToPan --resource-group RG-PAN-PRD-EUS-001 --route-table-name RT-PAN-PRD-EUS-001 --address-prefix "10.0.0.0/16" --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.1.4
+az network route-table route create --name RouteToPan --resource-group RG-PAN-PRD-EUS-001 --route-table-name RT-PAN-PRD-EUS-001 --address-prefix "10.0.0.0/21" --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.1.4
 
 #Add route to subnet - To be determined
 az network vnet subnet update --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --resource-group RG-PAN-PRD-EUS-001 --route-table RT-PAN-PRD-EUS-001

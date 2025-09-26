@@ -13,9 +13,9 @@ az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VN
 az network public-ip create --name PIP-MGMT-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --location eastus --dns-name panmgmt001 --allocation-method Static --sku Standard --zone 2
 
 #Create and Configure Multiple Network Interfaces
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
 
 #Create Network Security Groups
 az network nsg create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NSG-PAN-PRD-EUS-001
@@ -55,7 +55,7 @@ PIP_ID_1=$(az network public-ip show --name PIP-VNG-PRD-EUS-001 --resource-group
 PIP_ID_2=$(az network public-ip show --name PIP-VNG-PRD-EUS-002 --resource-group RG-PAN-PRD-EUS-001 --query id -o tsv)
 
 #Create a Virtual Network Gateway - Adjust the BGP peer - do not continue until VNG is fully deployed or it will fail
-az network vnet-gateway create --resource-group RG-PAN-PRD-EUS-001 --name VNG-S2S-PRD-EUS-001 --location eastus --public-ip-addresses $PIP_ID_1 $PIP_ID_2 --vnet VNET-HUB-PRD-EUS-001 --gateway-type Vpn --vpn-type RouteBased --sku VpnGw1AZ --no-wait --bgp-peering-address 10.10.10.10 --asn 65515
+az network vnet-gateway create --resource-group RG-PAN-PRD-EUS-001 --name VNG-S2S-PRD-EUS-001 --location eastus --public-ip-addresses $PIP_ID_1 $PIP_ID_2 --vnet VNET-HUB-PRD-EUS-001 --gateway-type Vpn --vpn-type RouteBased --sku VpnGw1AZ --no-wait --bgp-peering-address 10.10.10.10 --asn 64999
 
 #Create S2S connection - add psk for s2s
 az network vpn-connection create --name VPN-CONNECTION-S2S-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-gateway1 VNG-S2S-PRD-EUS-001 --location eastus --shared-key "YourSharedKeyHere" --local-gateway2 LNG-S2S-PRD-EUS-001 
@@ -69,6 +69,28 @@ az network route-table route create --name RouteToPan --resource-group RG-PAN-PR
 
 #Add route to subnet - To be determined
 az network vnet subnet update --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --resource-group RG-PAN-PRD-EUS-001 --route-table RT-PAN-PRD-EUS-001
+
+#ROUTE SERVER for BGP
+
+# Create a resource group
+az group create --name 'RG-PAN-PRD-EUS-001' --location 'eastus'
+
+# Create a virtual network and RouteServerSubnet
+az network vnet create --resource-group 'RG-PAN-PRD-EUS-001' --name 'VNET-HUB-PRD-EUS-001' --subnet-name 'SUBNET-RTRSRV-PRD-EUS-001' --subnet-prefixes '10.0.7.64/26'
+
+# Store the subnet ID in a variable for later use
+subnetId=$(az network vnet subnet show --name 'SUBNET-RTRSRV-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --vnet-name 'VNET-HUB-PRD-EUS-001' --query id -o tsv)
+
+# Create a Standard public IP for Route Server
+az network public-ip create --resource-group 'RG-PAN-PRD-EUS-001' --name 'PIP-RSVR-PRD-EUS-001' --sku Standard --version 'IPv4'
+
+# Create the Route Server
+az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address '10.0.2.4'
+
+# Create BGP peering with the network virtual appliance
+az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '64999' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
+
+#SPOKE VNETS
 
 # PUBLIC
 az group create --name RG-PUBLIC-PRD-EUS-002 --location eastus
@@ -134,4 +156,3 @@ az network vnet peering create --name PEER-PRODUCTION-TO-HUB-PRD-EUS-001 --resou
 #BACKUP
 az network vnet peering create --name PEER-HUB-TO-BACKUP-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --remote-vnet $(az network vnet show --resource-group RG-BACKUP-PRD-EUS-004 --name VNET-BACKUP-PRD-EUS-001 --query id -o tsv) --allow-vnet-access --allow-forwarded-traffic
 az network vnet peering create --name PEER-BACKUP-TO-HUB-PRD-EUS-001 --resource-group RG-BACKUP-PRD-EUS-004 --vnet-name VNET-BACKUP-PRD-EUS-001 --remote-vnet $(az network vnet show --resource-group RG-PAN-PRD-EUS-001 --name VNET-HUB-PRD-EUS-001 --query id -o tsv) --allow-vnet-access --allow-forwarded-traffic
-

@@ -14,8 +14,8 @@ az network public-ip create --name PIP-MGMT-PRD-EUS-001 --resource-group RG-PAN-
 
 #Create and Configure Multiple Network Interfaces
 az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001 --ip-forwarding true
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001 --ip-forwarding true
 
 #Create Network Security Groups
 az network nsg create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NSG-PAN-PRD-EUS-001
@@ -41,7 +41,7 @@ az vm create --resource-group RG-PAN-PRD-EUS-001 --name VM-PAN-PRD-EUS-001 --loc
 #SSH key files '/home/username/.ssh/id_rsa' and '/home/username/.ssh/id_rsa.pub' have been generated under ~/.ssh to allow SSH access to the VM
 
 #Create local network gateway
-az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 198.51.100.10 --local-address-prefixes 10.100.200.0/24 20.30.40.0/24 --asn 64999 --bgp-peering-address 10.100.200.45
+az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 198.51.100.10 --local-address-prefixes 10.100.200.0/24 20.30.40.0/24 --asn 65515 --bgp-peering-address 10.100.200.45
 
 #Create a Public IP for the Virtual Network Gateway
 az network public-ip create -n PIP-VNG-PRD-EUS-001 -g RG-PAN-PRD-EUS-001 --zone 2
@@ -55,7 +55,7 @@ PIP_ID_1=$(az network public-ip show --name PIP-VNG-PRD-EUS-001 --resource-group
 PIP_ID_2=$(az network public-ip show --name PIP-VNG-PRD-EUS-002 --resource-group RG-PAN-PRD-EUS-001 --query id -o tsv)
 
 #Create a Virtual Network Gateway - Adjust the BGP peer - do not continue until VNG is fully deployed or it will fail
-az network vnet-gateway create --resource-group RG-PAN-PRD-EUS-001 --name VNG-S2S-PRD-EUS-001 --location eastus --public-ip-addresses $PIP_ID_1 $PIP_ID_2 --vnet VNET-HUB-PRD-EUS-001 --gateway-type Vpn --vpn-type RouteBased --sku VpnGw1AZ --no-wait --bgp-peering-address 10.10.10.10 --asn 64999
+az network vnet-gateway create --resource-group RG-PAN-PRD-EUS-001 --name VNG-S2S-PRD-EUS-001 --location eastus --public-ip-addresses $PIP_ID_1 $PIP_ID_2 --vnet VNET-HUB-PRD-EUS-001 --gateway-type Vpn --vpn-type RouteBased --sku VpnGw1AZ --no-wait --bgp-peering-address 10.10.10.10 --asn 65515
 
 #Create S2S connection - add psk for s2s
 az network vpn-connection create --name VPN-CONNECTION-S2S-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-gateway1 VNG-S2S-PRD-EUS-001 --location eastus --shared-key "YourSharedKeyHere" --local-gateway2 LNG-S2S-PRD-EUS-001 
@@ -84,7 +84,7 @@ az network public-ip create --resource-group 'RG-PAN-PRD-EUS-001' --name 'PIP-RS
 az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address 'PIP-RSVR-PRD-EUS-001' 
 
 #Create BGP peering with the network virtual appliance
-az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '64999' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
+az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '65515' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
 
 #Enable branch-to-branch route exchange
 az network routeserver update --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --allow-b2b-traffic true

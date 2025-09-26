@@ -41,7 +41,7 @@ az vm create --resource-group RG-PAN-PRD-EUS-001 --name VM-PAN-PRD-EUS-001 --loc
 #SSH key files '/home/username/.ssh/id_rsa' and '/home/username/.ssh/id_rsa.pub' have been generated under ~/.ssh to allow SSH access to the VM
 
 #Create local network gateway
-az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 23.199.200.165 --local-address-prefixes 10.100.200.0/24 20.30.40.0/24 --asn 65513 --bgp-peering-address 10.100.200.45
+az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 23.199.200.165 --local-address-prefixes 10.100.200.0/24 20.30.40.0/24 --asn 64999 --bgp-peering-address 10.200.200.45
 
 #Create a Public IP for the Virtual Network Gateway
 az network public-ip create -n PIP-VNG-PRD-EUS-001 -g RG-PAN-PRD-EUS-001 --zone 2
@@ -70,8 +70,7 @@ az network route-table route create --name RouteToPan --resource-group RG-PAN-PR
 #Add route to subnet - To be determined
 az network vnet subnet update --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --resource-group RG-PAN-PRD-EUS-001 --route-table RT-PAN-PRD-EUS-001
 
-#ROUTE SERVER for BGP
-
+#ROUTE SERVER FOR BGP
 # Create a resource group
 az group create --name 'RG-PAN-PRD-EUS-001' --location 'eastus'
 
@@ -85,13 +84,15 @@ subnetId=$(az network vnet subnet show --name 'SUBNET-RTRSRV-PRD-EUS-001' --reso
 az network public-ip create --resource-group 'RG-PAN-PRD-EUS-001' --name 'PIP-RSVR-PRD-EUS-001' --sku Standard --version 'IPv4'
 
 # Create the Route Server
-az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address '10.0.2.4'
+az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address 'PIP-RSVR-PRD-EUS-001'
 
 # Create BGP peering with the network virtual appliance
 az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '64999' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
 
-#SPOKE VNETS
+# Enable branch-to-branch route exchange
+az network routeserver update --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --allow-b2b-traffic true
 
+#SPOKE VNETS
 # PUBLIC
 az group create --name RG-PUBLIC-PRD-EUS-002 --location eastus
 az network vnet create --resource-group RG-PUBLIC-PRD-EUS-002 --location eastus --name VNET-PUBLIC-PRD-EUS-001 --address-prefixes 10.0.16.0/20
@@ -144,7 +145,6 @@ az network route-table route create --resource-group RG-BACKUP-PRD-EUS-004 --rou
 az network route-table route create --resource-group RG-BACKUP-PRD-EUS-004 --route-table-name RT-BACKUP-PRD-EUS-001 --name ROUTE-TO-HUB-C-PRD-EUS-001 --address-prefix 10.0.4.0/22 --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.2.4
 
 #PEERINGS
-
 #PUBLIC
 az network vnet peering create --name PEER-HUB-TO-PUBLIC-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --remote-vnet $(az network vnet show --resource-group RG-PUBLIC-PRD-EUS-002 --name VNET-PUBLIC-PRD-EUS-001 --query id -o tsv) --allow-vnet-access --allow-forwarded-traffic
 az network vnet peering create --name PEER-PUBLIC-TO-HUB-PRD-EUS-001 --resource-group RG-PUBLIC-PRD-EUS-002 --vnet-name VNET-PUBLIC-PRD-EUS-001 --remote-vnet $(az network vnet show --resource-group RG-PAN-PRD-EUS-001 --name VNET-HUB-PRD-EUS-001 --query id -o tsv) --allow-vnet-access --allow-forwarded-traffic

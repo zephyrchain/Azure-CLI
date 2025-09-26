@@ -21,7 +21,7 @@ az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --na
 az network nsg create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NSG-PAN-PRD-EUS-001
 
 #Create Network Security Group Rule. This will be used for inbound management access - Modify source IP
-az network nsg rule create -g RG-PAN-PRD-EUS-001 --nsg-name NSG-PAN-PRD-EUS-001 -n mgmtaccess --priority 110 --source-address-prefixes "100.200.100.200" --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 22 443 --access Allow --protocol Tcp --description "Allow from any RFC 1918 address on 22 and 443"
+az network nsg rule create -g RG-PAN-PRD-EUS-001 --nsg-name NSG-PAN-PRD-EUS-001 -n mgmtaccess --priority 110 --source-address-prefixes "198.51.100.10" --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 22 443 --access Allow --protocol Tcp --description "Allow from any RFC 1918 address on 22 and 443"
 
 #Add Network Security Group to MGMT NIC
 az network nic update -g RG-PAN-PRD-EUS-001 -n NIC-MGMT-PRD-EUS-001 --network-security-group NSG-PAN-PRD-EUS-001
@@ -41,7 +41,7 @@ az vm create --resource-group RG-PAN-PRD-EUS-001 --name VM-PAN-PRD-EUS-001 --loc
 #SSH key files '/home/username/.ssh/id_rsa' and '/home/username/.ssh/id_rsa.pub' have been generated under ~/.ssh to allow SSH access to the VM
 
 #Create local network gateway
-az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 23.199.200.165 --local-address-prefixes 10.100.200.0/24 20.30.40.0/24 --asn 64999 --bgp-peering-address 10.200.200.45
+az network local-gateway create -g RG-PAN-PRD-EUS-001 -n LNG-S2S-PRD-EUS-001 --gateway-ip-address 198.51.100.10 --local-address-prefixes 10.100.200.0/24 20.30.40.0/24 --asn 64999 --bgp-peering-address 10.100.200.45
 
 #Create a Public IP for the Virtual Network Gateway
 az network public-ip create -n PIP-VNG-PRD-EUS-001 -g RG-PAN-PRD-EUS-001 --zone 2

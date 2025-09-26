@@ -2,7 +2,7 @@
 az group create --name RG-PAN-PRD-EUS-001 --location eastus
 
 #Create a Virtual Network
-az network vnet create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name VNET-HUB-PRD-EUS-001 --address-prefixes 10.0.0.0/16
+az network vnet create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name VNET-HUB-PRD-EUS-001 --address-prefixes 10.0.0.0/21
 
 #Create 3 Subnets in the virtual network. The Subnets are for the Mgmt, Untrust and Trust interfaces
 az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --name SUBNET-MGMT-PRD-EUS-001 --address-prefix 10.0.0.0/24
@@ -48,7 +48,7 @@ az network public-ip create -n PIP-VNG-PRD-EUS-001 -g RG-PAN-PRD-EUS-001 --zone 
 az network public-ip create -n PIP-VNG-PRD-EUS-002 -g RG-PAN-PRD-EUS-001 --zone 2
 
 #Create a Virtual Network Gateway Subnet
-az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --address-prefix 10.0.255.0/27
+az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --name GatewaySubnet --address-prefix 10.0.7.0/27
 
 # Retrieve the IDs of the Public IP addresses
 PIP_ID_1=$(az network public-ip show --name PIP-VNG-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --query id -o tsv)

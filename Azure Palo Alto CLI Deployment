@@ -36,7 +36,7 @@ az vm image terms show --publisher paloaltonetworks --offer vmseries1 --plan bun
 az vm image terms accept --publisher paloaltonetworks --offer vmseries1 --plan bundle2 
  
 #Create VM-Series and Assign NICs During Deployment
-az vm create --resource-group RG-PAN-PRD-EUS-001 --name VM-PAN-PRD-EUS-001 --location eastus --nics NIC-MGMT-PRD-EUS-001 NIC-UNTRST-PRD-EUS-001 NIC-TRST-PRD-EUS-001 --size Standard_D3_V5 --image paloaltonetworks:vmseries1:bundle2:8.1.0 --plan-name bundle2 --plan-product vmseries1 --plan-publisher paloaltonetworks --admin-username panadmin --generate-ssh-keys --zone 2 --tags Type="Virtual Machine" Application="Palo Alto"
+az vm create --resource-group RG-PAN-PRD-EUS-001 --name VM-PAN-PRD-EUS-001 --location eastus --nics NIC-MGMT-PRD-EUS-001 NIC-UNTRST-PRD-EUS-001 NIC-TRST-PRD-EUS-001 --size Standard_D2_V5 --image paloaltonetworks:vmseries1:bundle2:8.1.0 --plan-name bundle2 --plan-product vmseries1 --plan-publisher paloaltonetworks --admin-username panadmin --generate-ssh-keys --zone 2 --tags Type="Virtual Machine" Application="Palo Alto"
 
 #SSH key files '/home/username/.ssh/id_rsa' and '/home/username/.ssh/id_rsa.pub' have been generated under ~/.ssh to allow SSH access to the VM
 

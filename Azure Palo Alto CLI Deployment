@@ -111,8 +111,6 @@ az dns-resolver create --name "DNSR-HUB-PRD-EUS-001" --location "eastus" --id "/
 #Create the inbound/outbound endpoint
 az dns-resolver inbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "INBOUND-HUB-PRD-EUS-001" --location "eastus" --ip-configurations '[{"private-ip-allocation-method": "Dynamic", "id": "/subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-INBOUND-PRD-EUS-001"}]' --tags Role="Azure Private DNS Resolver" EndpointType="Inbound" --resource-group "RG-PAN-PRD-EUS-001"
 az dns-resolver outbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "OUTBOUND-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-OUTBOUND-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Outbound Endpoint" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001" --tags Role="Azure Private DNS Resolver" EndpointType="Outbound"
-az dns-resolver forwarding-rule create --ruleset-name "RS-OUTBOUND-HUB-PRD-EUS-001" --name "contoso-com-forwarding-rule" --domain-name "contoso.com" --forwarding-rule-state "Enabled" --metadata environment=production owner=networking-team
- --target-dns-servers '[{"ip-address": "10.0.0.1", "port": 53}, {"ip-address": "10.0.0.2", "port": 53}]' --resource-group "RG-PAN-PRD-EUS-001"
 
 #SPOKE VNETS
 #PUBLIC

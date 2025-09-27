@@ -70,6 +70,14 @@ Before running the script, ensure the following:
 - Route table associated with gateway subnet
 - **Azure Route Server** deployed for dynamic BGP route exchange with the firewall
 
+### VNet Peering
+The deployment script configures routes to enable communication between the following virtual networks (VNets):
+   VNet Name                     | Address Space | Peers                                  |
+ |-------------------------------|---------------|----------------------------------------|
+ | VNET-PUBLIC-PRD-EUS-001       | 10.0.16.0/20  | VNET-PRODUCTION-PRD-EUS-001, VNET-BACKUP-PRD-EUS-001 |
+ | VNET-PRODUCTION-PRD-EUS-001   | 10.0.32.0/20  | VNET-PUBLIC-PRD-EUS-001, VNET-BACKUP-PRD-EUS-001 |
+ | VNET-BACKUP-PRD-EUS-001       | 10.0.48.0/20  | VNET-PUBLIC-PRD-EUS-001, VNET-PRODUCTION-PRD-EUS-001 |
+
 ### DNS Resolution
 
 - **Azure Private DNS Resolver**

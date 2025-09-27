@@ -13,9 +13,9 @@ az network vnet subnet create --resource-group RG-PAN-PRD-EUS-001 --vnet-name VN
 az network public-ip create --name PIP-MGMT-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --location eastus --dns-name panmgmt001 --allocation-method Static --sku Standard --zone 2 --tags Role="Management Public IP" DNSLabel="panmgmt001"
 
 #Create and Configure Multiple Network Interfaces
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/000b3a62-f80a-41ae-a91f-f342ff637eb1/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001 --tags Role="Firewall NIC - Management" SubnetRole="Management"
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/000b3a62-f80a-41ae-a91f-f342ff637eb1/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001 --ip-forwarding true --tags Role="Firewall NIC - Untrust" SubnetRole="Untrust"
-az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/000b3a62-f80a-41ae-a91f-f342ff637eb1/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001 --ip-forwarding true --tags Role="Firewall NIC - Trust" SubnetRole="Trust"
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-MGMT-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-MGMT-PRD-EUS-001 --tags Role="Firewall NIC - Management" SubnetRole="Management"
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-UNTRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-UNTRST-PRD-EUS-001 --ip-forwarding true --tags Role="Firewall NIC - Untrust" SubnetRole="Untrust"
+az network nic create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NIC-TRST-PRD-EUS-001 --subnet /subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-TRST-PRD-EUS-001 --ip-forwarding true --tags Role="Firewall NIC - Trust" SubnetRole="Trust"
 
 #Create Network Security Groups
 az network nsg create --resource-group RG-PAN-PRD-EUS-001 --location eastus --name NSG-PAN-PRD-EUS-001 --tags Role="Management NSG" Purpose="Restrict SSH and HTTPS"
@@ -106,11 +106,13 @@ az config set extension.use_dynamic_install=yes_without_prompt
 az extension add --name dns-resolver --upgrade --yes
 
 #Create the DNS resolver 
-az dns-resolver create --name "DNSR-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/000b3a62-f80a-41ae-a91f-f342ff637eb1/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Resolver" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001"
+az dns-resolver create --name "DNSR-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Resolver" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001"
 
-#Create the inbound endpoint
-az dns-resolver inbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "INBOUND-HUB-PRD-EUS-001" --location "eastus" --ip-configurations '[{"private-ip-allocation-method": "Dynamic", "id": "/subscriptions/000b3a62-f80a-41ae-a91f-f342ff637eb1/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-INBOUND-PRD-EUS-001"}]' --tags Role="Azure Private DNS Resolver" EndpointType="Inbound" --resource-group "RG-PAN-PRD-EUS-001"
-az dns-resolver outbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "OUTBOUND-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/000b3a62-f80a-41ae-a91f-f342ff637eb1/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-OUTBOUND-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Outbound Endpoint" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001" --tags Role="Azure Private DNS Resolver" EndpointType="Outbound"
+#Create the inbound/outbound endpoint
+az dns-resolver inbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "INBOUND-HUB-PRD-EUS-001" --location "eastus" --ip-configurations '[{"private-ip-allocation-method": "Dynamic", "id": "/subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-INBOUND-PRD-EUS-001"}]' --tags Role="Azure Private DNS Resolver" EndpointType="Inbound" --resource-group "RG-PAN-PRD-EUS-001"
+az dns-resolver outbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "OUTBOUND-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/Add Subscription ID Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-OUTBOUND-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Outbound Endpoint" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001" --tags Role="Azure Private DNS Resolver" EndpointType="Outbound"
+az dns-resolver forwarding-rule create --ruleset-name "RS-OUTBOUND-HUB-PRD-EUS-001" --name "contoso-com-forwarding-rule" --domain-name "contoso.com" --forwarding-rule-state "Enabled" --metadata environment=production owner=networking-team
+ --target-dns-servers '[{"ip-address": "10.0.0.1", "port": 53}, {"ip-address": "10.0.0.2", "port": 53}]' --resource-group "RG-PAN-PRD-EUS-001"
 
 #SPOKE VNETS
 #PUBLIC

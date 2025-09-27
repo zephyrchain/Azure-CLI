@@ -102,7 +102,6 @@ az network vnet subnet create --name SUBNET-OUTBOUND-PRD-EUS-001 --resource-grou
 #Get the subnet ID
 subnet_id=$(az network vnet subnet show --name SUBNET-OUTBOUND-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --query id -o tsv)
 
-
 #Allow dynamic extension install w/o prompts and ensure the dns-resolver extension is present
 az config set extension.dynamic_install_allow_preview=true
 az config set extension.use_dynamic_install=yes_without_prompt

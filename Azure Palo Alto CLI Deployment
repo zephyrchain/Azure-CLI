@@ -84,10 +84,36 @@ az network public-ip create --resource-group 'RG-PAN-PRD-EUS-001' --name 'PIP-RS
 az network routeserver create --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --hosted-subnet $subnetId --public-ip-address 'PIP-RSVR-PRD-EUS-001' 
 
 #Create BGP peering with the network virtual appliance
-az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '65515' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
+az network routeserver peering create --name 'VM-PAN-PRD-EUS-001' --peer-ip '10.0.2.4' --peer-asn '64999' --routeserver 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001'
 
 #Enable branch-to-branch route exchange
 az network routeserver update --name 'RSVR-CORE-PRD-EUS-001' --resource-group 'RG-PAN-PRD-EUS-001' --allow-b2b-traffic true
+
+#PRIVATE DNS RESOLVER
+#Create an inbound subnet
+az network vnet subnet create --name SUBNET-INBOUND-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --address-prefixes 10.0.7.32/28 --delegations "Microsoft.Network/dnsResolvers"
+
+#Get the subnet ID
+subnet_id=$(az network vnet subnet show --name SUBNET-INBOUND-PRD-EUS-00 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --query id -o tsv)
+
+#Create an outbound subnet
+az network vnet subnet create --name SUBNET-OUTBOUND-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --address-prefixes 10.0.7.48/28 --delegations "Microsoft.Network/dnsResolvers"
+
+#Get the subnet ID
+subnet_id=$(az network vnet subnet show --name SUBNET-OUTBOUND-PRD-EUS-001 --resource-group RG-PAN-PRD-EUS-001 --vnet-name VNET-HUB-PRD-EUS-001 --query id -o tsv)
+
+
+#Allow dynamic extension install w/o prompts and ensure the dns-resolver extension is present
+az config set extension.dynamic_install_allow_preview=true
+az config set extension.use_dynamic_install=yes_without_prompt
+az extension add --name dns-resolver --upgrade --yes
+
+#Create the DNS resolver 
+az dns-resolver create --name "DNSR-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Resolver" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001"
+
+#Create the inbound endpoint
+az dns-resolver inbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "INBOUND-HUB-PRD-EUS-001" --location "eastus" --ip-configurations '[{"private-ip-allocation-method": "Dynamic", "id": "/subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-INBOUND-PRD-EUS-001"}]' --tags Environment="Production" ResourceType="DNS Resolver" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001"
+az dns-resolver outbound-endpoint create --dns-resolver-name "DNSR-HUB-PRD-EUS-001" --name "OUTBOUND-HUB-PRD-EUS-001" --location "eastus" --id "/subscriptions/Add Your Subscription Here/resourceGroups/RG-PAN-PRD-EUS-001/providers/Microsoft.Network/virtualNetworks/VNET-HUB-PRD-EUS-001/subnets/SUBNET-OUTBOUND-PRD-EUS-001" --tags Environment="Production" ResourceType="DNS Outbound Endpoint" Project="PAN" --resource-group "RG-PAN-PRD-EUS-001"
 
 #SPOKE VNETS
 #PUBLIC

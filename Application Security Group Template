@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Prompt for descriptor (e.g., APP for application)
 read -p "Enter descriptor (e.g., APP): " DESCRIPTOR
 

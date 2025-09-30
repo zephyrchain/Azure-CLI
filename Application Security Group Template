@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Prompt for descriptor (e.g., APP for application)
+read -p "Enter descriptor (e.g., APP): " DESCRIPTOR
+
+# Prompt for environment (e.g., PRD for production)
+read -p "Enter environment (e.g., PRD): " ENV
+
+# Prompt for region code (e.g., EUS for East US)
+read -p "Enter region code (e.g., EUS): " REGION
+
+# Prompt for sequence number (e.g., 001)
+read -p "Enter sequence number (e.g., 001): " SEQUENCE
+
+# Map region code to Azure location
+declare -A region_map=(
+    ["EUS"]="eastus"
+    ["WUS"]="westus"
+    ["CUS"]="centralus"
+    # Add more regions as needed
+)
+
+LOCATION=${region_map[$REGION]:-"eastus"}  # Default to eastus if region not found
+
+# Set resource names using the provided naming convention
+RESOURCE_GROUP="RG-${DESCRIPTOR}-${ENV}-${REGION}-${SEQUENCE}"
+NSG_NAME="NSG-${DESCRIPTOR}-${ENV}-${REGION}-${SEQUENCE}"
+ASG_NAME="ASG-${DESCRIPTOR}-${ENV}-${REGION}-${SEQUENCE}"
+
+# Create a resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Create an NSG
+az network nsg create --resource-group $RESOURCE_GROUP --name $NSG_NAME --location $LOCATION
+
+# Create an ASG
+az network asg create --resource-group $RESOURCE_GROUP --name $ASG_NAME --location $LOCATION
+
+# Add a rule to the NSG that references the ASG
+az network nsg rule create \
+  --resource-group $RESOURCE_GROUP \
+  --nsg-name $NSG_NAME \
+  --name Allow-From-ASG \
+  --protocol Tcp \
+  --direction Inbound \
+  --priority 100 \
+  --source-asgs $ASG_NAME \
+  --access Allow
+
+echo "NSG and ASG created and configured with custom names."
+echo "Resource Group: $RESOURCE_GROUP"
+echo "NSG Name: $NSG_NAME"
+echo "ASG Name: $ASG_NAME"
+echo "Location: $LOCATION"

@@ -1,0 +1,93 @@
+# Prompt for resource group name
+read -p "Enter resource group name: " RESOURCE_GROUP
+
+# List all NSGs in the resource group
+echo "Listing NSGs in resource group $RESOURCE_GROUP..."
+NSGS=$(az network nsg list --resource-group $RESOURCE_GROUP --query "[].{Name:name}" --output tsv)
+
+if [ -z "$NSGS" ]; then
+    echo "No NSGs found in resource group $RESOURCE_GROUP"
+    exit 1
+fi
+
+# Display NSGs and prompt for selection
+echo "Available NSGs:"
+i=1
+for nsg in $NSGS; do
+    echo "$i) $nsg"
+    ((i++))
+done
+read -p "Select an NSG by number: " nsg_num
+NSG_NAME=$(echo "$NSGS" | sed -n "${nsg_num}p")
+
+if [ -z "$NSG_NAME" ]; then
+    echo "Invalid selection."
+    exit 1
+fi
+echo "Selected NSG: $NSG_NAME"
+
+# Define common Windows services and ports, including ephemeral ports
+declare -A services=(
+    ["RDP"]="3389"
+    ["HTTP"]="80"
+    ["HTTPS"]="443"
+    ["SQL Server"]="1433"
+    ["LDAP"]="389"
+    ["LDAP SSL"]="636"
+    ["Kerberos"]="88"
+    ["DNS"]="53"
+    ["SMB"]="445"
+    ["PowerShell Remoting (HTTP)"]="5985"
+    ["PowerShell Remoting (HTTPS)"]="5986"
+    ["Ephemeral Ports"]="49152-65535"
+)
+
+# Display services and prompt for selection
+echo "Available services:"
+i=1
+service_keys=()
+for service in "${!services[@]}"; do
+    echo "$i) $service (${services[$service]})"
+    service_keys+=("$service")
+    ((i++))
+done
+
+selected_services=()
+read -p "Select services to add rules for (comma-separated numbers, e.g., 1,2,3): " service_nums
+IFS=',' read -ra nums <<< "$service_nums"
+for num in "${nums[@]}"; do
+    if [ "$num" -ge 1 ] && [ "$num" -le ${#service_keys[@]} ]; then
+        selected_services+=("${service_keys[$((num-1))]}")
+    fi
+done
+
+if [ ${#selected_services[@]} -eq 0 ]; then
+    echo "No valid services selected. Exiting."
+    exit 1
+fi
+
+echo "Selected services: ${selected_services[*]}"
+
+# Add rules for selected services with incrementing priority starting at 110 and incrementing by 5
+priority=110  # Starting priority
+for service in "${selected_services[@]}"; do
+    port_range=${services[$service]}
+    # Replace all characters that aren't word characters, '.', '-', or '_' with underscores
+    rule_name=$(echo "Allow-${service}" | sed 's/[^a-zA-Z0-9._-]/_/g')
+    echo "Adding rule for $service on port(s) $port_range with priority $priority..."
+    az network nsg rule create \
+        --resource-group $RESOURCE_GROUP \
+        --nsg-name $NSG_NAME \
+        --name "$rule_name" \
+        --protocol Tcp \
+        --direction Inbound \
+        --priority $priority \
+        --source-address-prefixes '*' \
+        --source-port-ranges '*' \
+        --destination-address-prefixes '*' \
+        --destination-port-ranges $port_range \
+        --access Allow
+    priority=$((priority + 5))  # Increment priority by 5
+done
+
+echo "Rules added to NSG $NSG_NAME for services: ${selected_services[*]} with priorities starting at 110 and incrementing by 5."

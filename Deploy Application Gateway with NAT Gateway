@@ -1,0 +1,46 @@
+# Variables
+AGW_RG="RG-APPGW-PRD-EUS-001"
+LOC="eastus"
+VNET_NAME="VNET-PUBLIC-PRD-EUS-001"
+SUBNET_NAME="SUBNET-AGW-PRD-EUS-001"
+RT_NAME="RT-PUBLIC-AGW-PRD-EUS-001"
+AGW_NAME="AGW-APP-PRD-EUS-001"
+PUBLIC_IP_NAME="PIP-APP-PRD-EUS-001"
+
+# Create a resource group for the Application Gateway resources
+az group create --name $AGW_RG --location $LOC
+
+# Create a new VNET and subnet in the same resource group
+az network vnet create --name $VNET_NAME --resource-group $AGW_RG --location $LOC --address-prefixes "10.0.0.0/16"
+az network vnet subnet create --name $SUBNET_NAME --resource-group $AGW_RG --vnet-name $VNET_NAME --address-prefixes "10.0.0.0/24"
+
+# Create a public IP address for the application gateway
+az network public-ip create --resource-group $AGW_RG --name $PUBLIC_IP_NAME --sku Standard --allocation-method Static
+
+# Create the application gateway with basic configuration
+az network application-gateway create --resource-group $AGW_RG --name $AGW_NAME --sku Standard_v2 --public-ip-address $PUBLIC_IP_NAME --vnet-name $VNET_NAME --subnet $SUBNET_NAME --priority 100
+
+# Create a backend address pool with IPs within the specified subnet
+az network application-gateway address-pool create --gateway-name $AGW_NAME --resource-group $AGW_RG --name "appGatewayBackendPool" --servers 10.0.0.4
+
+# Create backend HTTP settings
+az network application-gateway backend-settings create --gateway-name $AGW_NAME --resource-group $AGW_RG --name "appGatewayBackendHttpSettings" --port 80 --protocol "Http" --cookie-based-affinity "Disabled"
+
+# Create a route table and add an explicit Internet default route
+az network route-table create --resource-group $AGW_RG --name $RT_NAME --location $LOC --disable-bgp-route-propagation
+az network route-table route create --resource-group $AGW_RG --route-table-name $RT_NAME --name "ROUTE-DEFAULT-INTERNET" --address-prefix "0.0.0.0/0" --next-hop-type "Internet"
+
+# Associate the new route table to the AGW subnet
+az network vnet subnet update --resource-group $AGW_RG --vnet-name $VNET_NAME --name $SUBNET_NAME --route-table $RT_NAME
+
+# Create a Public IP address for the NAT Gateway in zone 2
+az network public-ip create --resource-group $AGW_RG --name "PIP-NAT-PRD-EUS-001" --sku Standard --allocation-method Static --location $LOC --zone 2
+
+# Create the NAT Gateway
+az network nat gateway create --resource-group $AGW_RG --name "NATGW-PRD-EUS-001" --public-ip-addresses "PIP-NAT-PRD-EUS-001" --idle-timeout 10
+
+# Associate the NAT Gateway with the subnet
+az network vnet subnet update --resource-group $AGW_RG --vnet-name $VNET_NAME --name $SUBNET_NAME --nat-gateway "NATGW-PRD-EUS-001"
+
+# Create Health Alerts in Portal for Best Practice Compliance
+# Note: This step typically involves using the Azure Portal or specific Azure CLI commands for monitoring and alerts.

@@ -1,10 +1,11 @@
+#!/bin/bash
+
 # Prompt for resource group name
 read -p "Enter resource group name: " RESOURCE_GROUP
 
 # List all NSGs in the resource group
 echo "Listing NSGs in resource group $RESOURCE_GROUP..."
 NSGS=$(az network nsg list --resource-group $RESOURCE_GROUP --query "[].{Name:name}" --output tsv)
-
 if [ -z "$NSGS" ]; then
     echo "No NSGs found in resource group $RESOURCE_GROUP"
     exit 1
@@ -19,7 +20,6 @@ for nsg in $NSGS; do
 done
 read -p "Select an NSG by number: " nsg_num
 NSG_NAME=$(echo "$NSGS" | sed -n "${nsg_num}p")
-
 if [ -z "$NSG_NAME" ]; then
     echo "Invalid selection."
     exit 1
@@ -51,7 +51,6 @@ for service in "${!services[@]}"; do
     service_keys+=("$service")
     ((i++))
 done
-
 selected_services=()
 read -p "Select services to add rules for (comma-separated numbers, e.g., 1,2,3): " service_nums
 IFS=',' read -ra nums <<< "$service_nums"
@@ -60,20 +59,33 @@ for num in "${nums[@]}"; do
         selected_services+=("${service_keys[$((num-1))]}")
     fi
 done
-
 if [ ${#selected_services[@]} -eq 0 ]; then
     echo "No valid services selected. Exiting."
     exit 1
 fi
-
 echo "Selected services: ${selected_services[*]}"
 
 # Add rules for selected services with incrementing priority starting at 110 and incrementing by 5
 priority=110  # Starting priority
 for service in "${selected_services[@]}"; do
     port_range=${services[$service]}
-    # Replace all characters that aren't word characters, '.', '-', or '_' with underscores
-    rule_name=$(echo "Allow-${service}" | sed 's/[^a-zA-Z0-9._-]/_/g')
+    # Abbreviate known service names
+    case $service in
+        "RDP") abbreviated="RDP" ;;
+        "HTTP") abbreviated="HTTP" ;;
+        "HTTPS") abbreviated="HTTPS" ;;
+        "SQL Server") abbreviated="SQL" ;;
+        "LDAP") abbreviated="LDAP" ;;
+        "LDAP SSL") abbreviated="LDAP-SSL" ;;
+        "Kerberos") abbreviated="KRB" ;;
+        "DNS") abbreviated="DNS" ;;
+        "SMB") abbreviated="SMB" ;;
+        "PowerShell Remoting (HTTP)") abbreviated="PS-HTTP" ;;
+        "PowerShell Remoting (HTTPS)") abbreviated="PS-HTTPS" ;;
+        "Ephemeral Ports") abbreviated="EPH-PORTS" ;;
+        *) abbreviated=$(echo "$service" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g') ;;
+    esac
+    rule_name="Allow-Inbound-${abbreviated}-${port_range}"
     echo "Adding rule for $service on port(s) $port_range with priority $priority..."
     az network nsg rule create \
         --resource-group $RESOURCE_GROUP \
@@ -89,5 +101,4 @@ for service in "${selected_services[@]}"; do
         --access Allow
     priority=$((priority + 5))  # Increment priority by 5
 done
-
 echo "Rules added to NSG $NSG_NAME for services: ${selected_services[*]} with priorities starting at 110 and incrementing by 5."

@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Prompt for resource group name
 read -p "Enter resource group name: " RESOURCE_GROUP
 

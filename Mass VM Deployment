@@ -1,0 +1,42 @@
+LOCATION="eastus"
+NETWORK_RG="RG-PUBLIC-PRD-EUS-002" # Resource group for the existing VNet/Subnet
+VNET_NAME="VNET-PUBLIC-PRD-EUS-001"
+SUBNET_NAME="SUBNET-WEB-PRD-EUS-001"
+IMAGE="Ubuntu2404"
+VM_SIZE="Standard_DS1_v2"
+ADMIN_USER="azureuser"
+
+# List of VM names
+VM_NAMES=("WEB001" "WEB002" "WEB003")
+
+# Get subnet resource ID (required when subnet is in a different RG)
+SUBNET_ID=$(az network vnet subnet show \
+    --resource-group "$NETWORK_RG" \
+    --vnet-name "$VNET_NAME" \
+    --name "$SUBNET_NAME" \
+    --query id -o tsv)
+
+for i in "${!VM_NAMES[@]}"; do
+  VM_BASE="${VM_NAMES[$i]}"
+  RESOURCE_GROUP="RG-${VM_BASE^^}-PRD-EUS"
+  # VM naming (adapts to source VM name)
+  VM_NAME="${VM_BASE^^}-WEB-APP-PRD-EUS_"
+
+  echo "Creating resource group: $RESOURCE_GROUP"
+  az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
+
+  echo "Creating VM: $VM_NAME in $RESOURCE_GROUP (NO PUBLIC IP)"
+  az vm create \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$VM_NAME" \
+    --image "$IMAGE" \
+    --size "$VM_SIZE" \
+    --admin-username "$ADMIN_USER" \
+    --generate-ssh-keys \
+    --subnet "$SUBNET_ID" \
+    --location "$LOCATION" \
+    --public-ip-address ""
+done
+
+# image: pick an image from ['CentOS85Gen2', 'Debian11', 'OpenSuseLeap154Gen2', 'RHELRaw8LVMGen2', 'SuseSles15SP5', 'Ubuntu2204', 'Ubuntu2404', 'Ubuntu2404Pro', 'FlatcarLinuxFreeGen2', 'Win2022Datacenter', 'Win2022AzureEditionCore', 'Win2019Datacenter', 'Win2016Datacenter', 'Win2012R2Datacenter', 'Win2012Datacenter'].
+# See vm create -h for more information on specifying an image.

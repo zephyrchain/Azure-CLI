@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -euo pipefail
 
 # --------- Config ---------
@@ -6,9 +5,8 @@ LOCATION="eastus"
 NETWORK_RG="RG-PUBLIC-PRD-EUS-002"      # Existing VNet/Subnet RG
 VNET_NAME="VNET-PUBLIC-PRD-EUS-001"
 SUBNET_NAME="SUBNET-WEB-PRD-EUS-001"
-
 IMAGE="Ubuntu2404"                      # or Ubuntu2204, Win2022Datacenter, etc.
-VM_SIZE="Standard_DS2_v5"               
+VM_SIZE="Standard_DS2_v5"
 ADMIN_USER="azureuser"
 
 # Distribute across zones? Set to "true" or "false"
@@ -19,6 +17,7 @@ TAGS="env=prd app=web region=eastus owner=platform"
 
 # List of VM base names
 VM_NAMES=("WEB001" "WEB002" "WEB003")
+
 # If you prefer one RG for all VMs, set RG_ALL and flip USE_PER_VM_RG=false
 USE_PER_VM_RG=true
 RG_ALL="RG-WEB-PRD-EUS"
@@ -30,7 +29,6 @@ SUBNET_ID=$(az network vnet subnet show \
     --vnet-name "$VNET_NAME" \
     --name "$SUBNET_NAME" \
     --query id -o tsv)
-
 if [[ -z "${SUBNET_ID:-}" ]]; then
   echo "ERROR: Could not resolve SUBNET_ID. Check VNet/Subnet names and permissions." >&2
   exit 1

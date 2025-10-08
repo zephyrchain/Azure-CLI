@@ -1,0 +1,42 @@
+set -e  # Exit on error
+
+LOCATION="eastus"
+# List of storage account names (must be globally unique, 3-24 chars, lowercase letters and numbers only)
+STORAGE_ACCOUNT_NAMES=("stweb001prdeus" "stweb002prdeus" "stweb003prdeus")
+# SKU: Standard_ZRS for zone redundancy -# SKU: Standard_LRS, Standard_GRS, Standard_ZRS, Premium_LRS
+SKU="Standard_ZRS"
+# Allow blob public access: false (recommended for security)
+ALLOW_BLOB_PUBLIC_ACCESS=false
+# Define tags as key-value pairs
+TAGS="Environment=Production Project=WebApp Owner=Admin CostCenter=IT"
+
+for STORAGE_ACCOUNT_NAME in "${STORAGE_ACCOUNT_NAMES[@]}"; do
+    RESOURCE_GROUP="RG-${STORAGE_ACCOUNT_NAME}-PRD-EUS"
+
+    echo "Creating resource group: $RESOURCE_GROUP"
+    az group create \
+        --name "$RESOURCE_GROUP" \
+        --location "$LOCATION" \
+        --tags "$TAGS"
+
+    echo "Creating zone-redundant storage account: $STORAGE_ACCOUNT_NAME in $RESOURCE_GROUP"
+    az storage account create \
+        --name "$STORAGE_ACCOUNT_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --location "$LOCATION" \
+        --sku "$SKU" \
+        --allow-blob-public-access "$ALLOW_BLOB_PUBLIC_ACCESS" \
+        --kind "StorageV2" \
+        --access-tier "Hot" \
+        --https-only true \
+        --min-tls-version "TLS1_2" \
+        --tags "$TAGS"
+
+    # Optionally, create a blob container for each storage account
+    CONTAINER_NAME="data"
+    echo "Creating blob container: $CONTAINER_NAME in $STORAGE_ACCOUNT_NAME"
+    az storage container create \
+        --name "$CONTAINER_NAME" \
+        --account-name "$STORAGE_ACCOUNT_NAME" \
+        --auth-mode login
+done

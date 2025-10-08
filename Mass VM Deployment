@@ -1,42 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --------- Config ---------
 LOCATION="eastus"
-NETWORK_RG="RG-PUBLIC-PRD-EUS-002" # Resource group for the existing VNet/Subnet
+NETWORK_RG="RG-PUBLIC-PRD-EUS-002"      # Existing VNet/Subnet RG
 VNET_NAME="VNET-PUBLIC-PRD-EUS-001"
 SUBNET_NAME="SUBNET-WEB-PRD-EUS-001"
-IMAGE="Ubuntu2404"
-VM_SIZE="Standard_DS1_v2"
+
+IMAGE="Ubuntu2404"                      # or Ubuntu2204, Win2022Datacenter, etc.
+VM_SIZE="Standard_DS2_v5"               
 ADMIN_USER="azureuser"
 
-# List of VM names
-VM_NAMES=("WEB001" "WEB002" "WEB003")
+# Distribute across zones? Set to "true" or "false"
+USE_ZONES=true
 
-# Get subnet resource ID (required when subnet is in a different RG)
+# Tags (optional)
+TAGS="env=prd app=web region=eastus owner=platform"
+
+# List of VM base names
+VM_NAMES=("WEB001" "WEB002" "WEB003")
+# If you prefer one RG for all VMs, set RG_ALL and flip USE_PER_VM_RG=false
+USE_PER_VM_RG=true
+RG_ALL="RG-WEB-PRD-EUS"
+
+# --------- Resolve Subnet ID ---------
+echo "Resolving subnet ID for $VNET_NAME/$SUBNET_NAME in $NETWORK_RG..."
 SUBNET_ID=$(az network vnet subnet show \
     --resource-group "$NETWORK_RG" \
     --vnet-name "$VNET_NAME" \
     --name "$SUBNET_NAME" \
     --query id -o tsv)
 
+if [[ -z "${SUBNET_ID:-}" ]]; then
+  echo "ERROR: Could not resolve SUBNET_ID. Check VNet/Subnet names and permissions." >&2
+  exit 1
+fi
+
+# --------- Ensure common RG if using single RG ---------
+if [[ "$USE_PER_VM_RG" == "false" ]]; then
+  echo "Ensuring resource group: $RG_ALL"
+  az group create --name "$RG_ALL" --location "$LOCATION" -o none
+fi
+
+# --------- Create VMs ---------
 for i in "${!VM_NAMES[@]}"; do
-  VM_BASE="${VM_NAMES[$i]}"
-  RESOURCE_GROUP="RG-${VM_BASE^^}-PRD-EUS"
-  # VM naming (adapts to source VM name)
-  VM_NAME="${VM_BASE^^}-WEB-APP-PRD-EUS_"
+  BASE="${VM_NAMES[$i]}"
+  BASE_UPPER="${BASE^^}"
 
-  echo "Creating resource group: $RESOURCE_GROUP"
-  az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
+  if [[ "$USE_PER_VM_RG" == "true" ]]; then
+    RG="RG-${BASE_UPPER}-PRD-EUS"
+  else
+    RG="$RG_ALL"
+  fi
 
-  echo "Creating VM: $VM_NAME in $RESOURCE_GROUP (NO PUBLIC IP)"
+  # VM resource name: letters, numbers, hyphens only (no underscores), <=64 chars
+  VM_NAME="${BASE_UPPER}-WEB-APP-PRD-EUS"
+
+  # Optional: spread across zones 1/2/3 if supported by region+SKU
+  if [[ "$USE_ZONES" == "true" ]]; then
+    ZONE=$(( (i % 3) + 1 ))
+    ZONE_ARGS=(--zone "$ZONE")
+  else
+    ZONE_ARGS=()
+  fi
+
+  echo "Ensuring resource group: $RG"
+  az group create --name "$RG" --location "$LOCATION" -o none
+
+  # Idempotency: skip if VM already exists
+  if az vm show --resource-group "$RG" --name "$VM_NAME" &>/dev/null; then
+    echo "VM $VM_NAME already exists in $RG. Skipping."
+    continue
+  fi
+
+  echo "Creating VM: $VM_NAME in $RG (no public IP; subnet in different RG)"
   az vm create \
-    --resource-group "$RESOURCE_GROUP" \
+    --resource-group "$RG" \
     --name "$VM_NAME" \
     --image "$IMAGE" \
     --size "$VM_SIZE" \
     --admin-username "$ADMIN_USER" \
     --generate-ssh-keys \
     --subnet "$SUBNET_ID" \
+    --public-ip-address "" \
+    --nsg "" \
+    "${ZONE_ARGS[@]}" \
     --location "$LOCATION" \
-    --public-ip-address ""
+    --tags $TAGS \
+    -o jsonc
 done
+
+echo "Done."
 
 # image: pick an image from ['CentOS85Gen2', 'Debian11', 'OpenSuseLeap154Gen2', 'RHELRaw8LVMGen2', 'SuseSles15SP5', 'Ubuntu2204', 'Ubuntu2404', 'Ubuntu2404Pro', 'FlatcarLinuxFreeGen2', 'Win2022Datacenter', 'Win2022AzureEditionCore', 'Win2019Datacenter', 'Win2016Datacenter', 'Win2012R2Datacenter', 'Win2012Datacenter'].
 # See vm create -h for more information on specifying an image.

@@ -1,4 +1,4 @@
-# Prompt for resource group name
+# Prompt for resource group name 
 read -p "Enter resource group name: " RESOURCE_GROUP
 
 # List all NSGs in the resource group

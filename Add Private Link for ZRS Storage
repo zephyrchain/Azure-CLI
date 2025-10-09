@@ -1,0 +1,67 @@
+set -euo pipefail
+
+# Configuration
+LOCATION="eastus"
+# Storage accounts and their resource groups
+declare -A STORAGE_ACCOUNTS=(
+  ["stweb001prdeus"]="RG-stweb001prdeus-PRD-EUS"
+  ["stweb002prdeus"]="RG-stweb002prdeus-PRD-EUS"
+  ["stweb003prdeus"]="RG-stweb003prdeus-PRD-EUS"
+)
+# Network and DNS configuration
+VNET_NAME="VNET-PRODUCTION-PRD-EUS-001"
+SUBNET_NAME="SUBNET-DB-PRD-EUS-001"
+VNET_RESOURCE_GROUP="RG-PRODUCTION-PRD-EUS-003"
+DNS_ZONE_NAME="privatelink.blob.core.windows.net"
+# Use the VNet's resource group for the DNS zone (best practice)
+DNS_ZONE_RG="$VNET_RESOURCE_GROUP"
+
+# Get necessary IDs
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+VNET_ID=$(az network vnet show --resource-group "$VNET_RESOURCE_GROUP" --name "$VNET_NAME" --query id -o tsv)
+SUBNET_ID=$(az network vnet subnet show --resource-group "$VNET_RESOURCE_GROUP" --vnet-name "$VNET_NAME" --name "$SUBNET_NAME" --query id -o tsv)
+
+# Ensure subnet is ready for private endpoints
+az network vnet subnet update --ids "$SUBNET_ID" --private-endpoint-network-policies Disabled >/dev/null
+
+# Ensure a single private DNS zone exists and is linked to the VNet
+if ! az network private-dns zone show --resource-group "$DNS_ZONE_RG" --name "$DNS_ZONE_NAME" >/dev/null 2>&1; then
+  az network private-dns zone create --resource-group "$DNS_ZONE_RG" --name "$DNS_ZONE_NAME" >/dev/null
+fi
+
+# Link the VNet to the DNS zone if not already linked
+if ! az network private-dns link vnet list --resource-group "$DNS_ZONE_RG" --zone-name "$DNS_ZONE_NAME" \
+     --query "[?virtualNetwork.id=='$VNET_ID']" -o tsv | grep -q .; then
+  az network private-dns link vnet create \
+    --resource-group "$DNS_ZONE_RG" \
+    --zone-name "$DNS_ZONE_NAME" \
+    --name "link-to-$VNET_NAME" \
+    --virtual-network "$VNET_ID" \
+    --registration-enabled false >/dev/null
+fi
+
+# Loop through storage accounts and create private endpoints
+for STORAGE_ACCOUNT_NAME in "${!STORAGE_ACCOUNTS[@]}"; do
+  RG="${STORAGE_ACCOUNTS[$STORAGE_ACCOUNT_NAME]}"
+  # Get the storage account ID
+  SA_ID=$(az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$RG" --query id -o tsv)
+
+  # Create private endpoint in the storage account's resource group
+  PE_NAME="${STORAGE_ACCOUNT_NAME}-pe"
+  az network private-endpoint create \
+    --resource-group "$RG" \
+    --name "$PE_NAME" \
+    --subnet "$SUBNET_ID" \
+    --private-connection-resource-id "$SA_ID" \
+    --group-id "blob" \
+    --connection-name "${PE_NAME}-conn" \
+    --location "$LOCATION" >/dev/null
+
+  # Automatically manage DNS via a DNS zone group
+  az network private-endpoint dns-zone-group add \
+    --endpoint-name "$PE_NAME" \
+    --resource-group "$RG" \
+    --name "${PE_NAME}-dzg" \
+    --zone-name "$DNS_ZONE_NAME" \
+    --private-dns-zone "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$DNS_ZONE_RG/providers/Microsoft.Network/privateDnsZones/$DNS_ZONE_NAME" >/dev/null || true
+done

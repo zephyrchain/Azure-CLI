@@ -1,0 +1,49 @@
+# --- USER INPUTS (Replace with your values) ---
+ENVIRONMENT="PRD"                     # e.g., "PRD" for Production
+LOCATION="EUS"                        # e.g., "EUS" for East US
+REGION_NUMBER="003"                    # e.g., "003" for resource numbering
+RESOURCE_GROUP="RG-PRODUCTION-$ENVIRONMENT-$LOCATION-$REGION_NUMBER"
+NAMESPACE="SB-PRODUCTION-$ENVIRONMENT-$LOCATION-$REGION_NUMBER"
+QUEUE="QUEUE-APP-$ENVIRONMENT-$LOCATION-$REGION_NUMBER"
+
+# --- SCRIPT STARTS HERE ---
+echo "Creating Azure Service Bus resources with naming conventions..."
+
+# 1. Create a resource group (if it doesn't exist)
+az group create \
+  --name "$RESOURCE_GROUP" \
+  --location "eastus" \
+  --tags Role="Resource Group" Environment="Production" Type="Production"
+echo "Resource group '$RESOURCE_GROUP' created."
+
+# 2. Create a Service Bus namespace
+az servicebus namespace create \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$NAMESPACE" \
+  --location "eastus" \
+  --sku Standard \
+  --tags Role="Service Bus" Environment="Production" Type="Production"
+echo "Service Bus namespace '$NAMESPACE' created."
+
+# 3. Create a queue
+az servicebus queue create \
+  --resource-group "$RESOURCE_GROUP" \
+  --namespace-name "$NAMESPACE" \
+  --name "$QUEUE"
+echo "Queue '$QUEUE' created."
+
+# --- OUTPUT: Save these strings ---
+echo -e "\n\n=== IMPORTANT: SAVE THESE STRINGS ==="
+echo "Resource Group: $RESOURCE_GROUP"
+echo "Namespace: $NAMESPACE"
+echo "Queue: $QUEUE"
+
+# Get the primary connection string for the namespace
+CONNECTION_STRING=$(az servicebus namespace authorization-rule keys list \
+  --resource-group "$RESOURCE_GROUP" \
+  --namespace-name "$NAMESPACE" \
+  --name RootManageSharedAccessKey \
+  --query primaryConnectionString \
+  --output tsv)
+
+echo "Primary Connection String: $CONNECTION_STRING"

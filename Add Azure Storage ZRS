@@ -12,7 +12,6 @@ TAGS="Environment=Production Project=WebApp Owner=Admin CostCenter=IT"
 
 for STORAGE_ACCOUNT_NAME in "${STORAGE_ACCOUNT_NAMES[@]}"; do
     RESOURCE_GROUP="RG-${STORAGE_ACCOUNT_NAME}-PRD-EUS"
-
     echo "Creating resource group: $RESOURCE_GROUP"
     az group create \
         --name "$RESOURCE_GROUP" \
@@ -32,8 +31,8 @@ for STORAGE_ACCOUNT_NAME in "${STORAGE_ACCOUNT_NAMES[@]}"; do
         --min-tls-version "TLS1_2" \
         --tags "$TAGS"
 
-    # Optionally, create a blob container for each storage account
-    CONTAINER_NAME="data"
+    # Create a unique container name for each storage account
+    CONTAINER_NAME="${STORAGE_ACCOUNT_NAME}-container"
     echo "Creating blob container: $CONTAINER_NAME in $STORAGE_ACCOUNT_NAME"
     az storage container create \
         --name "$CONTAINER_NAME" \

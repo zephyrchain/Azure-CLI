@@ -1,4 +1,4 @@
-# Define variables following the user's naming conventions
+# Define variables
 RESOURCE_GROUP_NAME="RG-PRODUCTION-PRD-EUS-003"
 LOCATION="eastus"
 APPINSIGHTS_NAME="APPINSIGHTS-PRODUCTION-PRD-EUS-001"

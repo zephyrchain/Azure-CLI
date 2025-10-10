@@ -1,31 +1,32 @@
 # Define variables
 RESOURCE_GROUP_NAME="RG-PRODUCTION-PRD-EUS-003"
 LOCATION="eastus"
-APPINSIGHTS_NAME="APPINSIGHTS-PRODUCTION-PRD-EUS-001"
+APPINSIGHTS_NAME="appinsights-production-prd-eus-001"
 APPINSIGHTS_TYPE="web"  # Can be 'web', 'java', 'node.js', etc. depending on your application type
 TAGS='Role="Application Insights" Environment="Production" Type="Production"'
 
 # Create Application Insights resource
 echo "Creating Application Insights resource $APPINSIGHTS_NAME in resource group $RESOURCE_GROUP_NAME..."
-az monitor app-insights create \
-  --name "$APPINSIGHTS_NAME" \
+az monitor app-insights component create \
+  --app "$APPINSIGHTS_NAME" \
   --resource-group "$RESOURCE_GROUP_NAME" \
   --location "$LOCATION" \
   --application-type "$APPINSIGHTS_TYPE" \
-  --tags "$TAGS"
+  --tags $TAGS
 
 # Enable daily data cap (best practice)
 echo "Enabling daily data cap for $APPINSIGHTS_NAME..."
-az monitor app-insights update \
-  --name "$APPINSIGHTS_NAME" \
+az monitor app-insights component billing update \
+  --app "$APPINSIGHTS_NAME" \
   --resource-group "$RESOURCE_GROUP_NAME" \
-  --daily-data-cap 100  # Set to 100 GB/day as an example
+  --cap 100
 
 # Enable sampling (best practice to reduce data volume and cost)
 echo "Enabling sampling for $APPINSIGHTS_NAME..."
-az monitor app-insights update \
-  --name "$APPINSIGHTS_NAME" \
+az resource update \
   --resource-group "$RESOURCE_GROUP_NAME" \
-  --sampling-percentage 100  # 100% sampling by default, adjust as needed
+  --resource-type "Microsoft.Insights/components" \
+  --name "$APPINSIGHTS_NAME" \
+  --set properties.SamplingPercentage=10
 
 echo "Application Insights resource $APPINSIGHTS_NAME has been created successfully with best practices configuration."

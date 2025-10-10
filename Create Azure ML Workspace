@@ -1,0 +1,113 @@
+# Define variables for the existing and new resource groups
+EXISTING_RESOURCE_GROUP_NAME="RG-PRODUCTION-PRD-EUS-003"
+NEW_RESOURCE_GROUP_NAME="RG-AML-PRODUCTION-PRD-EUS-001"
+LOCATION="eastus"
+AML_WORKSPACE_NAME="aml-production-prd-eus-001"
+STORAGE_ACCOUNT_NAME="stamlprdeus001"  # Storage account name must be lowercase and alphanumeric
+KEYVAULT_NAME="kv-aml-prd-eus-001"
+APPLICATION_INSIGHTS_NAME="appinsights-aml-prd-eus-001"
+TAGS='{"Role":"Machine Learning Workspace","Environment":"Production","Type":"Production"}'
+
+# Install the required Azure CLI extensions
+echo "Installing required Azure CLI extensions..."
+az extension add --name application-insights
+
+# Get subscription ID
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+# Check if the new resource group exists, create if it doesn't
+echo "Checking if resource group $NEW_RESOURCE_GROUP_NAME exists..."
+if ! az group show --name "$NEW_RESOURCE_GROUP_NAME" &>/dev/null; then
+  echo "Creating resource group $NEW_RESOURCE_GROUP_NAME..."
+  az group create \
+    --name "$NEW_RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --tags "$TAGS"
+fi
+
+# Check if storage account exists in either resource group, create if it doesn't
+echo "Checking if storage account $STORAGE_ACCOUNT_NAME exists..."
+if ! az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$EXISTING_RESOURCE_GROUP_NAME" &>/dev/null && \
+   ! az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" &>/dev/null; then
+  echo "Creating storage account $STORAGE_ACCOUNT_NAME in resource group $NEW_RESOURCE_GROUP_NAME..."
+  az storage account create \
+    --name "$STORAGE_ACCOUNT_NAME" \
+    --resource-group "$NEW_RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --sku Standard_LRS \
+    --tags "$TAGS"
+else
+  echo "Storage account $STORAGE_ACCOUNT_NAME already exists."
+fi
+
+# Get the full ARM resource ID for the storage account
+STORAGE_ACCOUNT_ID=$(az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" --query id -o tsv)
+
+# Check if Key Vault exists in either resource group, create if it doesn't
+echo "Checking if Key Vault $KEYVAULT_NAME exists..."
+if ! az keyvault show --name "$KEYVAULT_NAME" --resource-group "$EXISTING_RESOURCE_GROUP_NAME" &>/dev/null && \
+   ! az keyvault show --name "$KEYVAULT_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" &>/dev/null; then
+  echo "Creating Key Vault $KEYVAULT_NAME in resource group $NEW_RESOURCE_GROUP_NAME..."
+  az keyvault create \
+    --name "$KEYVAULT_NAME" \
+    --resource-group "$NEW_RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --tags "$TAGS"
+else
+  echo "Key Vault $KEYVAULT_NAME already exists."
+fi
+
+# Get the full ARM resource ID for the Key Vault
+KEYVAULT_ID=$(az keyvault show --name "$KEYVAULT_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" --query id -o tsv)
+
+# Check if Application Insights exists in either resource group, create if it doesn't
+echo "Checking if Application Insights $APPLICATION_INSIGHTS_NAME exists..."
+if ! az monitor app-insights component show --app "$APPLICATION_INSIGHTS_NAME" --resource-group "$EXISTING_RESOURCE_GROUP_NAME" &>/dev/null && \
+   ! az monitor app-insights component show --app "$APPLICATION_INSIGHTS_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" &>/dev/null; then
+  echo "Creating Application Insights $APPLICATION_INSIGHTS_NAME in resource group $NEW_RESOURCE_GROUP_NAME..."
+  az monitor app-insights component create \
+    --app "$APPLICATION_INSIGHTS_NAME" \
+    --resource-group "$NEW_RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --application-type "web" \
+    --tags "$TAGS"
+else
+  echo "Application Insights $APPLICATION_INSIGHTS_NAME already exists."
+fi
+
+# Get the full ARM resource ID for the Application Insights
+APPINSIGHTS_ID=$(az monitor app-insights component show --app "$APPLICATION_INSIGHTS_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" --query id -o tsv)
+
+# Create a YAML configuration file for the workspace
+WORKSPACE_CONFIG="workspace.yml"
+cat > $WORKSPACE_CONFIG <<EOF
+name: $AML_WORKSPACE_NAME
+location: $LOCATION
+resource_group: $NEW_RESOURCE_GROUP_NAME
+storage_account: $STORAGE_ACCOUNT_ID
+key_vault: $KEYVAULT_ID
+application_insights: $APPINSIGHTS_ID
+tags: $TAGS
+EOF
+
+# Check if Azure Machine Learning workspace exists, create if it doesn't
+echo "Checking if Azure Machine Learning workspace $AML_WORKSPACE_NAME exists..."
+if ! az ml workspace show --name "$AML_WORKSPACE_NAME" --resource-group "$NEW_RESOURCE_GROUP_NAME" &>/dev/null; then
+  echo "Creating Azure Machine Learning workspace $AML_WORKSPACE_NAME in resource group $NEW_RESOURCE_GROUP_NAME..."
+  az ml workspace create \
+    --file "$WORKSPACE_CONFIG" \
+    --resource-group "$NEW_RESOURCE_GROUP_NAME"
+else
+  echo "Azure Machine Learning workspace $AML_WORKSPACE_NAME already exists."
+  # Update the workspace using the configuration file
+  echo "Updating Azure Machine Learning workspace $AML_WORKSPACE_NAME..."
+  az ml workspace update \
+    --file "$WORKSPACE_CONFIG" \
+    --resource-group "$NEW_RESOURCE_GROUP_NAME" \
+    --name "$AML_WORKSPACE_NAME"
+fi
+
+# Clean up the configuration file
+rm "$WORKSPACE_CONFIG"
+
+echo "Azure Machine Learning workspace setup completed."

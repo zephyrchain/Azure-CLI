@@ -1,0 +1,22 @@
+# Define variables following the user's naming conventions
+RESOURCE_GROUP_NAME="RG-PRODUCTION-PRD-EUS-003"
+LOCATION="eastus"
+KEYVAULT_NAME="KV-PRODUCTION-PRD-EUS-001"
+
+# Create a Key Vault with the specified naming convention and tags
+echo "Creating Key Vault $KEYVAULT_NAME in resource group $RESOURCE_GROUP_NAME..."
+az keyvault create \
+  --name "$KEYVAULT_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --location "$LOCATION" \
+  --tags Role="Key Vault" Environment="Production" Type="Production"
+
+# Enable soft-delete and purge protection
+echo "Enabling soft-delete and purge protection for $KEYVAULT_NAME..."
+az keyvault update \
+  --name "$KEYVAULT_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --enable-soft-delete true \
+  --enable-purge-protection true
+
+echo "Key Vault $KEYVAULT_NAME has been created successfully with soft-delete and purge protection enabled."

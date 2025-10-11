@@ -1,0 +1,117 @@
+set -Eeuo pipefail
+trap 'echo "Failed at line $LINENO: $BASH_COMMAND" >&2' ERR
+
+# -------- Variables --------
+RESOURCE_GROUP_NAME="RG-AKS-PRODUCTION-EUS-001"
+LOCATION="eastus"
+AKS_CLUSTER_NAME="aks-production-eus-001"
+VNET_NAME="vnet-aks-prd-eus-001"
+SUBNET_NAME="subnet-aks-prod-eus-001"
+IP_ADDRESS_SPACE="10.0.0.0/16"
+SUBNET_ADDRESS_PREFIX="10.0.0.0/24"
+# Service CIDR and DNS must align: DNS must be inside service CIDR.
+SERVICE_CIDR="10.1.0.0/16"
+DNS_SERVICE_IP="10.1.0.10"  # Must be inside SERVICE_CIDR
+LOG_ANALYTICS_WORKSPACE_NAME="log-aks-production-eus-001"
+# Use JSON format for tags
+TAGS_JSON='{"Role":"AKS Cluster","Environment":"Production","Type":"Production"}'
+
+# -------- Helpers --------
+check_status() {
+  local rc=$?
+  if [ $rc -ne 0 ]; then
+    echo "Error: $1 failed with exit code $rc" >&2
+    exit $rc
+  fi
+}
+
+# -------- Azure CLI prep --------
+echo "Installing/updating aks-preview extension if needed..."
+az extension add --name aks-preview --upgrade >/dev/null 2>&1 || az extension update --name aks-preview >/dev/null 2>&1
+check_status "Installing/updating aks-preview extension"
+
+# -------- Resource Group --------
+echo "Checking if resource group $RESOURCE_GROUP_NAME exists..."
+if ! az group show --name "$RESOURCE_GROUP_NAME" >/dev/null 2>&1; then
+  echo "Creating resource group $RESOURCE_GROUP_NAME..."
+  az group create \
+    --name "$RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --tags "$TAGS_JSON" >/dev/null
+  check_status "Creating resource group"
+fi
+
+# -------- Log Analytics --------
+echo "Creating/ensuring Log Analytics workspace $LOG_ANALYTICS_WORKSPACE_NAME..."
+# First check if workspace already exists
+if LOG_ANALYTICS_WORKSPACE_ID=$(az monitor log-analytics workspace show \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --workspace-name "$LOG_ANALYTICS_WORKSPACE_NAME" \
+  --query id -o tsv 2>/dev/null); then
+  echo "Using existing Log Analytics workspace: $LOG_ANALYTICS_WORKSPACE_ID"
+else
+  echo "Creating new Log Analytics workspace..."
+  LOG_ANALYTICS_WORKSPACE_ID=$(az monitor log-analytics workspace create \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --workspace-name "$LOG_ANALYTICS_WORKSPACE_NAME" \
+    --location "$LOCATION" \
+    --tags "$TAGS_JSON" \
+    --query id -o tsv)
+  check_status "Creating Log Analytics workspace"
+fi
+
+# -------- Networking --------
+echo "Creating virtual network $VNET_NAME and subnet $SUBNET_NAME..."
+az network vnet create \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$VNET_NAME" \
+  --address-prefixes "$IP_ADDRESS_SPACE" \
+  --subnet-name "$SUBNET_NAME" \
+  --subnet-prefixes "$SUBNET_ADDRESS_PREFIX" >/dev/null
+check_status "Creating virtual network and subnet"
+
+echo "Fetching subnet ID..."
+SUBNET_ID=$(az network vnet subnet show \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --vnet-name "$VNET_NAME" \
+  --name "$SUBNET_NAME" \
+  --query id -o tsv)
+check_status "Getting subnet ID"
+
+# -------- AKS creation --------
+echo "Creating AKS cluster $AKS_CLUSTER_NAME (this can take several minutes)..."
+echo "Note: AKS will create a second resource group (MC_*) for cluster resources - this is by design."
+az aks create \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$AKS_CLUSTER_NAME" \
+  --location "$LOCATION" \
+  --node-count 1 \
+  --network-plugin azure \
+  --vnet-subnet-id "$SUBNET_ID" \
+  --dns-service-ip "$DNS_SERVICE_IP" \
+  --service-cidr "$SERVICE_CIDR" \
+  --enable-managed-identity \
+  --generate-ssh-keys \
+  --ssh-access disabled
+check_status "Creating AKS cluster"
+
+# -------- Monitoring addon --------
+echo "Enabling monitoring addon..."
+az aks enable-addons \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$AKS_CLUSTER_NAME" \
+  --addons monitoring \
+  --workspace-resource-id "$LOG_ANALYTICS_WORKSPACE_ID"
+check_status "Enabling monitoring addon"
+
+# -------- Credentials --------
+echo "Getting AKS credentials..."
+az aks get-credentials \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$AKS_CLUSTER_NAME" \
+  --admin
+check_status "Getting AKS credentials"
+
+echo "AKS cluster $AKS_CLUSTER_NAME created successfully."
+echo "All user-specified resources are in $RESOURCE_GROUP_NAME"
+echo "Note: AKS automatically created a second resource group (MC_*) for cluster resources - this is normal and required"

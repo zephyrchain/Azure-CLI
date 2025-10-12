@@ -1,4 +1,4 @@
-# --- USER INPUTS (Replace with your values) ---
+# --- USER INPUTS ---
 ENVIRONMENT="prd"                     # Must be lowercase for resource names
 LOCATION="eus"                        # Must be lowercase for resource names
 REGION_NUMBER="003"                   # e.g., "003" for resource numbering

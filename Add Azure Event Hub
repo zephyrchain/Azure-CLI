@@ -1,0 +1,82 @@
+# --- USER INPUTS (Replace with your values) ---
+ENVIRONMENT="prd"                     # Must be lowercase for resource names
+LOCATION="eus"                        # Must be lowercase for resource names
+REGION_NUMBER="003"                   # e.g., "003" for resource numbering
+RESOURCE_GROUP="RG-PRODUCTION-$ENVIRONMENT-$LOCATION-$REGION_NUMBER"
+NAMESPACE="eh-production-$ENVIRONMENT-$LOCATION-$REGION_NUMBER"  # Must be lowercase
+EVENTHUB="eventhub-app-$ENVIRONMENT-$LOCATION-$REGION_NUMBER"     # Must be lowercase
+SKU="Standard"                        # Options: Standard, Premium
+MESSAGE_RETENTION_DAYS=7              # Integer
+PARTITION_COUNT=4                     # Integer
+ENABLE_ZONE_REDUNDANCY=false          # Set to true for high availability (only for Premium SKU)
+
+# --- SCRIPT STARTS HERE ---
+echo "Creating Azure Event Hubs resources with best practices..."
+
+# 1. Create a resource group (if it doesn't exist)
+az group create \
+  --name "$RESOURCE_GROUP" \
+  --location "eastus" \
+  --tags Role="Resource Group" Environment="Production" Type="Production" >/dev/null
+echo "Resource group '$RESOURCE_GROUP' created."
+
+# 2. Create an Event Hubs namespace
+ZONE_ARG=""
+if [[ "$ENABLE_ZONE_REDUNDANCY" == "true" && "$SKU" == "Premium" ]]; then
+  ZONE_ARG="--zone-redundant true"
+fi
+
+az eventhubs namespace create \
+  --name "$NAMESPACE" \
+  --resource-group "$RESOURCE_GROUP" \
+  --location "eastus" \
+  --sku "$SKU" \
+  --tags Role="Event Hubs" Environment="Production" Type="Production" \
+  $ZONE_ARG >/dev/null
+echo "Event Hubs namespace '$NAMESPACE' created."
+
+# 3. Create an event hub
+# (Retention now uses hours with cleanup policy 'Delete')
+az eventhubs eventhub create \
+  --name "$EVENTHUB" \
+  --resource-group "$RESOURCE_GROUP" \
+  --namespace-name "$NAMESPACE" \
+  --cleanup-policy Delete \
+  --retention-time $((MESSAGE_RETENTION_DAYS * 24)) \
+  --partition-count $PARTITION_COUNT >/dev/null
+echo "Event hub '$EVENTHUB' created."
+
+# 4. Create a custom authorization rule (least privilege)
+az eventhubs eventhub authorization-rule create \
+  --name "SendListenRule" \
+  --resource-group "$RESOURCE_GROUP" \
+  --namespace-name "$NAMESPACE" \
+  --eventhub-name "$EVENTHUB" \
+  --rights Send Listen >/dev/null
+echo "Custom authorization rule 'SendListenRule' created."
+
+# --- OUTPUT: Save these strings ---
+echo -e "\n\n=== IMPORTANT: SAVE THESE STRINGS ==="
+echo "Resource Group: $RESOURCE_GROUP"
+echo "Namespace: $NAMESPACE"
+echo "Event Hub: $EVENTHUB"
+echo "FQDN: ${NAMESPACE}.servicebus.windows.net"
+
+# Get the primary connection string for the namespace
+PRIMARY_CONNECTION_STRING=$(az eventhubs namespace authorization-rule keys list \
+  --resource-group "$RESOURCE_GROUP" \
+  --namespace-name "$NAMESPACE" \
+  --name RootManageSharedAccessKey \
+  --query primaryConnectionString \
+  --output tsv 2>/dev/null)
+
+# Get the connection string for the custom rule
+SEND_LISTEN_CONNECTION_STRING=$(az eventhubs eventhub authorization-rule keys list \
+  --resource-group "$RESOURCE_GROUP" \
+  --namespace-name "$NAMESPACE" \
+  --eventhub-name "$EVENTHUB" \
+  --name "SendListenRule" \
+  --query primaryConnectionString \
+  --output tsv 2>/dev/null)
+
+echo "Primary Namespace Connection String: $PRIMARY_CONNECTION_STRING"

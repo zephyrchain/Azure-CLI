@@ -1,0 +1,273 @@
+set -euo pipefail
+
+# ---------------------------------------
+# Helper: colored logging
+# ---------------------------------------
+log()   { echo -e "\033[1;34m[INFO]\033[0m  $*"; }
+warn()  { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
+error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+
+# ---------------------------------------
+# Login / Tenant
+# ---------------------------------------
+if ! az account show >/dev/null 2>&1; then
+  log "No active Azure session found. Launching 'az login'..."
+  az login >/dev/null
+fi
+TENANT_ID="$(az account show --query tenantId -o tsv)"
+
+# ---------------------------------------
+# Parameters
+# ---------------------------------------
+LOCATION="eastus"
+
+# Hub/Spoke gateway options:
+# If your hub will host a VPN/ExpressRoute gateway and spokes should use it:
+GATEWAY_TRANSIT_HUB=false       # hub peering flag: --allow-gateway-transit
+REMOTE_GATEWAYS_SPOKES=false    # spoke peering flag: --use-remote-gateways
+
+# Management Groups (IDs have no spaces; display names can)
+# Define MG display and parent references (parent can be TENANT_ID or another MG ID)
+declare -A MG_DISPLAY=()
+declare -A MG_PARENT=()
+
+MG_DISPLAY[zephyrchain]="ZephyrChain";           MG_PARENT[zephyrchain]="$TENANT_ID"
+MG_DISPLAY[platform]="Platform";         MG_PARENT[platform]="zephyrchain"
+MG_DISPLAY[landing-zones]="Landing zones"; MG_PARENT[landing-zones]="zephyrchain"
+MG_DISPLAY[decommissioned]="Decommissioned"; MG_PARENT[decommissioned]="zephyrchain"
+MG_DISPLAY[sandbox]="Sandbox";           MG_PARENT[sandbox]="zephyrchain"
+
+# Platform children
+MG_DISPLAY[identity]="Identity";         MG_PARENT[identity]="platform"
+MG_DISPLAY[management]="Management";     MG_PARENT[management]="platform"
+MG_DISPLAY[connectivity]="Connectivity"; MG_PARENT[connectivity]="platform"
+
+# Seed landing zone children (add more later as needed)
+MG_DISPLAY[lz-a1]="Landing zone A1";     MG_PARENT[lz-a1]="landing-zones"
+MG_DISPLAY[lz-a2]="Landing zone A2";     MG_PARENT[lz-a2]="landing-zones"
+MG_DISPLAY[lz-p1]="Landing zone P1";     MG_PARENT[lz-p1]="landing-zones"
+
+# Spokes to deploy/peer to the hub
+SPOKES=( "lz-a1" "lz-a2" "lz-p1" )
+
+# Subscriptions (REPLACE THESE)
+declare -A SUBS=()
+SUBS[identity]="<IDENTITY-SUBSCRIPTION-ID>"
+SUBS[management]="<MANAGEMENT-SUBSCRIPTION-ID>"
+SUBS[connectivity]="<CONNECTIVITY-SUBSCRIPTION-ID>"
+SUBS[lz-a1]="<LZ-A1-SUBSCRIPTION-ID>"
+SUBS[lz-a2]="<LZ-A2-SUBSCRIPTION-ID>"
+SUBS[lz-p1]="<LZ-P1-SUBSCRIPTION-ID>"
+SUBS[sandbox]="<SANDBOX-SUBSCRIPTION-ID>"
+
+# VNet definitions: one primary subnet per VNet for simplicity.
+# You can add more subnets later with additional 'az network vnet subnet create' calls.
+declare -A RG=() VNET=() PREFIXES=() SUBNET_NAME=() SUBNET_PREFIX=()
+
+# Identity VNet
+RG[identity]="RG-IDENTITY-PRD-EUS-005"
+VNET[identity]="VNET-IDENTITY-PRD-EUS-001"
+PREFIXES[identity]="10.0.8.0/21"
+SUBNET_NAME[identity]="SUBNET-IDENTITY-MGMT-EUS-001"
+SUBNET_PREFIX[identity]="10.0.8.0/24"
+
+# Hub (Connectivity) VNet
+RG[connectivity]="RG-PAN-PRD-EUS-001"
+VNET[connectivity]="VNET-HUB-PRD-EUS-001"
+PREFIXES[connectivity]="10.0.0.0/21"
+SUBNET_NAME[connectivity]="SUBNET-MGMT-PRD-EUS-001"
+SUBNET_PREFIX[connectivity]="10.0.0.0/24"
+
+# Spokes
+RG[lz-a1]="RG-PUBLIC-PRD-EUS-002"
+VNET[lz-a1]="VNET-PUBLIC-PRD-EUS-001"
+PREFIXES[lz-a1]="10.0.16.0/20"
+SUBNET_NAME[lz-a1]="DMZ-PRD-EUS-001"
+SUBNET_PREFIX[lz-a1]="10.0.16.0/24"
+
+RG[lz-a2]="RG-PRODUCTION-PRD-EUS-003"
+VNET[lz-a2]="VNET-PRODUCTION-PRD-EUS-001"
+PREFIXES[lz-a2]="10.0.32.0/20"
+SUBNET_NAME[lz-a2]="SUBNET-APP-PRD-EUS-001"
+SUBNET_PREFIX[lz-a2]="10.0.32.0/24"
+
+RG[lz-p1]="RG-BACKUP-PRD-EUS-004"
+VNET[lz-p1]="VNET-BACKUP-PRD-EUS-001"
+PREFIXES[lz-p1]="10.0.48.0/20"
+SUBNET_NAME[lz-p1]="BKPMGMT-PRD-EUS-001"
+SUBNET_PREFIX[lz-p1]="10.0.48.0/24"
+
+# Hub key
+HUB_KEY="connectivity"
+
+# ---------------------------------------
+# Helper functions
+# ---------------------------------------
+
+ensure_mg() {
+  local id="$1" display="$2" parent="$3"
+  if az account management-group show --name "$id" >/dev/null 2>&1; then
+    # best-effort display sync
+    az account management-group update --name "$id" --display-name "$display" >/dev/null 2>&1 || true
+    log "MG exists: $id ($display)"
+  else
+    log "Creating MG: $id (parent: $parent)"
+    az account management-group create --name "$id" --display-name "$display" --parent "$parent" >/dev/null
+  fi
+}
+
+ensure_sub_in_mg() {
+  local subid="$1" mgid="$2"
+  if [[ -z "$subid" || "$subid" == \<*SUBSCRIPTION-ID*\> ]]; then
+    error "Subscription ID for '$mgid' is not set. Update SUBS[$mgid]."
+    exit 1
+  fi
+  if az account management-group subscription add --name "$mgid" --subscription "$subid" >/dev/null 2>&1; then
+    log "Placed subscription $subid into MG $mgid"
+  else
+    # Might already be associated—treat as ok
+    warn "Subscription $subid might already be in MG $mgid (continuing)"
+  fi
+}
+
+ensure_rg() {
+  local rg="$1" location="$2"
+  az group create -n "$rg" -l "$location" >/dev/null
+  log "RG ensured: $rg ($location)"
+}
+
+ensure_vnet() {
+  local subkey="$1"
+  local subid="${SUBS[$subkey]}"
+  local rg="${RG[$subkey]}"
+  local vnet="${VNET[$subkey]}"
+  local prefixes="${PREFIXES[$subkey]}"
+  local sname="${SUBNET_NAME[$subkey]}"
+  local sprefix="${SUBNET_PREFIX[$subkey]}"
+
+  if [[ -z "${subid:-}" || -z "${rg:-}" || -z "${vnet:-}" || -z "${prefixes:-}" || -z "${sname:-}" || -z "${sprefix:-}" ]]; then
+    error "VNet definition incomplete for key '$subkey'."
+    exit 1
+  fi
+
+  az account set --subscription "$subid"
+
+  ensure_rg "$rg" "$LOCATION"
+
+  if az network vnet show -g "$rg" -n "$vnet" >/dev/null 2>&1; then
+    log "VNet exists: $vnet in $rg"
+    if az network vnet subnet show -g "$rg" --vnet-name "$vnet" -n "$sname" >/dev/null 2>&1; then
+      log "Subnet exists: $sname in $vnet"
+    else
+      log "Creating missing subnet $sname in $vnet"
+      az network vnet subnet create -g "$rg" --vnet-name "$vnet" -n "$sname" --address-prefixes "$sprefix" >/dev/null
+    fi
+  else
+    log "Creating VNet: $vnet ($prefixes) in RG $rg"
+    az network vnet create -g "$rg" -n "$vnet" --location "$LOCATION" \
+      --address-prefixes $prefixes \
+      --subnet-name "$sname" --subnet-prefixes "$sprefix" >/dev/null
+  fi
+}
+
+ensure_peering_pair() {
+  local rgA="$1" vnetA="$2" rgB="$3" vnetB="$4" allowTransitA="$5" useRemoteB="$6"
+
+  local idA idB
+  idA="$(az network vnet show -g "$rgA" -n "$vnetA" --query id -o tsv)"
+  idB="$(az network vnet show -g "$rgB" -n "$vnetB" --query id -o tsv)"
+  if [[ -z "$idA" || -z "$idB" ]]; then
+    error "Unable to resolve VNet IDs for peering ($vnetA <-> $vnetB)."
+    exit 1
+  fi
+
+  local peerAB="peer-${vnetA}-to-${vnetB}"
+  local peerBA="peer-${vnetB}-to-${vnetA}"
+
+  if az network vnet peering show -g "$rgA" --vnet-name "$vnetA" -n "$peerAB" >/dev/null 2>&1; then
+    log "Peering exists: $peerAB"
+  else
+    log "Creating peering $peerAB"
+    args=(network vnet peering create -g "$rgA" --vnet-name "$vnetA" -n "$peerAB" --remote-vnet "$idB" --allow-vnet-access)
+    if [[ "$allowTransitA" == "true" ]]; then args+=(--allow-gateway-transit); fi
+    az "${args[@]}" >/dev/null
+  fi
+
+  if az network vnet peering show -g "$rgB" --vnet-name "$vnetB" -n "$peerBA" >/dev/null 2>&1; then
+    log "Peering exists: $peerBA"
+  else
+    log "Creating peering $peerBA"
+    args=(network vnet peering create -g "$rgB" --vnet-name "$vnetB" -n "$peerBA" --remote-vnet "$idA" --allow-vnet-access)
+    if [[ "$useRemoteB" == "true" ]]; then args+=(--use-remote-gateways); fi
+    az "${args[@]}" >/dev/null
+  fi
+}
+
+# ---------------------------------------
+# Management Groups (create/update)
+# ---------------------------------------
+log "Ensuring Management Group hierarchy..."
+
+# Ensure root/top-level first
+ensure_mg "zephyrchain" "${MG_DISPLAY[zephyrchain]}" "${MG_PARENT[zephyrchain]}"
+
+# Then ensure other MGs (parents before children)
+ORDERED=( "platform" "landing-zones" "decommissioned" "sandbox" "identity" "management" "connectivity" "lz-a1" "lz-a2" "lz-p1" )
+for id in "${ORDERED[@]}"; do
+  if [[ -n "${MG_DISPLAY[$id]+x}" ]]; then
+    parent="${MG_PARENT[$id]}"
+    # Parent ref: if not tenant ID GUID, it’s another MG id
+    ensure_mg "$id" "${MG_DISPLAY[$id]}" "$parent"
+  fi
+done
+
+# ---------------------------------------
+# Place subscriptions under MGs
+# ---------------------------------------
+log "Placing subscriptions under target Management Groups..."
+ensure_sub_in_mg "${SUBS[identity]}" "identity"
+ensure_sub_in_mg "${SUBS[management]}" "management"
+ensure_sub_in_mg "${SUBS[connectivity]}" "connectivity"
+
+for s in "${SPOKES[@]}"; do
+  if [[ -z "${SUBS[$s]+x}" ]]; then
+    error "Missing subscription mapping for spoke '$s' in SUBS[...]"
+    exit 1
+  fi
+  ensure_sub_in_mg "${SUBS[$s]}" "$s"
+done
+
+# ---------------------------------------
+# Core networking: Identity + Hub + Spokes
+# ---------------------------------------
+log "Ensuring VNets..."
+
+ensure_vnet "identity"
+ensure_vnet "$HUB_KEY"
+
+for s in "${SPOKES[@]}"; do
+  ensure_vnet "$s"
+done
+
+# ---------------------------------------
+# Hub-Spoke peerings
+# ---------------------------------------
+log "Ensuring hub-spoke peerings..."
+HUB_RG="${RG[$HUB_KEY]}"
+HUB_VNET="${VNET[$HUB_KEY]}"
+
+for s in "${SPOKES[@]}"; do
+  ensure_peering_pair \
+    "$HUB_RG" "$HUB_VNET" \
+    "${RG[$s]}" "${VNET[$s]}" \
+    "$( $GATEWAY_TRANSIT_HUB && echo true || echo false )" \
+    "$( $REMOTE_GATEWAYS_SPOKES && echo true || echo false )"
+done
+
+# ---------------------------------------
+# Output hierarchy and summary
+# ---------------------------------------
+log "Management Groups:"
+az account management-group list --output table
+
+log "Completed hub/spoke peerings for spokes: ${SPOKES[*]}"

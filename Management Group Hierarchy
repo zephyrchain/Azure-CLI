@@ -32,10 +32,10 @@ declare -A MG_DISPLAY=()
 declare -A MG_PARENT=()
 
 MG_DISPLAY[zephyrchain]="ZephyrChain";           MG_PARENT[zephyrchain]="$TENANT_ID"
-MG_DISPLAY[platform]="Platform";         MG_PARENT[platform]="zephyrchain"
-MG_DISPLAY[landing-zones]="Landing zones"; MG_PARENT[landing-zones]="zephyrchain"
-MG_DISPLAY[decommissioned]="Decommissioned"; MG_PARENT[decommissioned]="zephyrchain"
-MG_DISPLAY[sandbox]="Sandbox";           MG_PARENT[sandbox]="zephyrchain"
+MG_DISPLAY[platform]="Platform";                 MG_PARENT[platform]="zephyrchain"
+MG_DISPLAY[landing-zones]="Landing zones";       MG_PARENT[landing-zones]="zephyrchain"
+MG_DISPLAY[decommissioned]="Decommissioned";     MG_PARENT[decommissioned]="zephyrchain"
+MG_DISPLAY[sandbox]="Sandbox";                   MG_PARENT[sandbox]="zephyrchain"
 
 # Platform children
 MG_DISPLAY[identity]="Identity";         MG_PARENT[identity]="platform"
